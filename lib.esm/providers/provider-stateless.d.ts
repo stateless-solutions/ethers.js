@@ -29,14 +29,18 @@ export type Attestation = {
 /**
  *  A JSON-RPC result, which are returned on success from a JSON-RPC server.
  */
-export type AttestableJsonRpcResult = JsonRpcResult & {
+export type AttestedJsonRpcResult = JsonRpcResult & {
     /**
      * Attestation data for the request.
      */
     attestations: Array<Attestation>;
 };
 export declare class StatelessProvider extends JsonRpcProvider {
-    constructor(url?: string | FetchRequest, network?: Networkish, options?: JsonRpcApiProviderOptions);
-    _send(payload: JsonRpcPayload | Array<JsonRpcPayload>): Promise<Array<AttestableJsonRpcResult>>;
+    /**
+     * Minimum number of matching attestations required to consider a response valid
+     */
+    minimumRequiredAttestations: number;
+    constructor(url?: string | FetchRequest, network?: Networkish, options?: JsonRpcApiProviderOptions, minimumRequiredAttestations?: number);
+    _send(payload: JsonRpcPayload | Array<JsonRpcPayload>): Promise<Array<JsonRpcResult>>;
 }
 //# sourceMappingURL=provider-stateless.d.ts.map
