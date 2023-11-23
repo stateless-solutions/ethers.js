@@ -70,7 +70,7 @@ export {
     BrowserProvider,
 
     AlchemyProvider, AnkrProvider, CloudflareProvider, EtherscanProvider,
-    InfuraProvider, InfuraWebSocketProvider, PocketProvider, QuickNodeProvider,
+    InfuraProvider, InfuraWebSocketProvider, PocketProvider, QuickNodeProvider, StatelessProvider,
 
     IpcSocketProvider, SocketProvider, WebSocketProvider,
 
