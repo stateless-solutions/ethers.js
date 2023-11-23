@@ -101,10 +101,9 @@ export class StatelessProvider extends JsonRpcProvider {
       );
 
       if (!isValid) {
-        console.log("Failed verification for request:", payload);
-        // throw new Error(
-        //   `Request did not meet the attestation threshold of ${this.minimumRequiredAttestations}.`
-        // );
+        throw new Error(
+          `Request did not meet the attestation threshold of ${this.minimumRequiredAttestations}.`
+        );
       }
 
       delete result.attestations;
@@ -147,8 +146,6 @@ async function verifyAttestedJsonRpcResponse(
     const publicKeyUint8Array = new Uint8Array(key.part.A.data);
 
     if (!verifyAttestation(attestation, publicKeyUint8Array, hash)) {
-      console.log("Hash:", hash.toString("hex"));
-      console.log("Invalid attestation:", attestation);
       continue;
     }
 
