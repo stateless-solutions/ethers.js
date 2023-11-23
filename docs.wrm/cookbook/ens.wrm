@@ -4,7 +4,7 @@ Here is a collection of short, but useful examples of working with
 ENS entries.
 
 
-_subsection: Get all Text rectods  @<cookbook-ens-allText>
+_subsection: Get all Text records  @<cookbook-ens-allText>
 
 Here is a short recipe to get all the text records set for an ENS
 name.
@@ -19,7 +19,7 @@ to install:
 
 _code: Fetching all ENS text records.  @lang<script>
 
-mport { ethers } from "ethers";
+import { ethers } from "ethers";
 import { MulticallProvider } from "@ethers-ext/provider-multicall";
 
 async function getTextRecords(_provider, name) {
@@ -43,7 +43,7 @@ async function getTextRecords(_provider, name) {
   // Filter the *unique* keys
   const keys = [ ...(new Set(logs.map((log) => log.args.key))) ];
 
-  // Get the values for the keys; failures are discard
+  // Get the values for the keys; failures are discarded
   const values = await Promise.all(keys.map((key) => {
       try {
           return resolver.getText(key);
