@@ -55,14 +55,17 @@ export class StatelessProvider extends JsonRpcProvider {
    * Minimum number of matching attestations required to consider a response valid
    */
   minimumRequiredAttestations: number;
+  identities: string[];
 
   constructor(
-    url?: string | FetchRequest,
+    url: string,
+    identities: string[],
+    minimumRequiredAttestations?: number,
     network?: Networkish,
     options?: JsonRpcApiProviderOptions,
-    minimumRequiredAttestations?: number
   ) {
     super(url, network, options);
+    this.identities = identities
     this.minimumRequiredAttestations = minimumRequiredAttestations || 1;
   }
 
@@ -82,22 +85,16 @@ export class StatelessProvider extends JsonRpcProvider {
       resp = [resp];
     }
 
-    let identities: string[] | undefined;
 
     // If it's a batch request, the identity is only included in the first response from the batch
     // We need to construct an ordered list of identities to use for verification
     for (let i = 0; i < resp.length; i++) {
       const result = resp[i];
-      if (resp.length > 1 && i == 0 && result.attestations) {
-        identities = result.attestations.map(
-          (attestation: Attestation) => attestation.identity
-        );
-      }
 
       const isValid = await verifyAttestedJsonRpcResponse(
         result,
         this.minimumRequiredAttestations,
-        identities
+        this.identities
       );
 
       if (!isValid) {

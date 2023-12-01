@@ -8,8 +8,10 @@ export class StatelessProvider extends JsonRpcProvider {
      * Minimum number of matching attestations required to consider a response valid
      */
     minimumRequiredAttestations;
-    constructor(url, network, options, minimumRequiredAttestations) {
+    identities;
+    constructor(url, identities, minimumRequiredAttestations, network, options) {
         super(url, network, options);
+        this.identities = identities;
         this.minimumRequiredAttestations = minimumRequiredAttestations || 1;
     }
     async _send(payload) {
@@ -23,15 +25,11 @@ export class StatelessProvider extends JsonRpcProvider {
         if (!Array.isArray(resp)) {
             resp = [resp];
         }
-        let identities;
         // If it's a batch request, the identity is only included in the first response from the batch
         // We need to construct an ordered list of identities to use for verification
         for (let i = 0; i < resp.length; i++) {
             const result = resp[i];
-            if (resp.length > 1 && i == 0 && result.attestations) {
-                identities = result.attestations.map((attestation) => attestation.identity);
-            }
-            const isValid = await verifyAttestedJsonRpcResponse(result, this.minimumRequiredAttestations, identities);
+            const isValid = await verifyAttestedJsonRpcResponse(result, this.minimumRequiredAttestations, this.identities);
             if (!isValid) {
                 throw new Error(`Request did not meet the attestation threshold of ${this.minimumRequiredAttestations}.`);
             }

@@ -1,4 +1,3 @@
-import { FetchRequest } from "../utils/index.js";
 import type { Networkish } from "./network.js";
 import { JsonRpcApiProviderOptions, JsonRpcPayload, JsonRpcProvider, JsonRpcResult } from "./provider-jsonrpc";
 /**
@@ -40,7 +39,8 @@ export declare class StatelessProvider extends JsonRpcProvider {
      * Minimum number of matching attestations required to consider a response valid
      */
     minimumRequiredAttestations: number;
-    constructor(url?: string | FetchRequest, network?: Networkish, options?: JsonRpcApiProviderOptions, minimumRequiredAttestations?: number);
+    identities: string[];
+    constructor(url: string, identities: string[], minimumRequiredAttestations?: number, network?: Networkish, options?: JsonRpcApiProviderOptions);
     _send(payload: JsonRpcPayload | Array<JsonRpcPayload>): Promise<Array<JsonRpcResult>>;
 }
 //# sourceMappingURL=provider-stateless.d.ts.map
