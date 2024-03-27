@@ -4,9 +4,6 @@ import * as nacl from "tweetnacl";
 import { FetchRequest } from "../utils/index.js";
 import { JsonRpcProvider, } from "./provider-jsonrpc";
 export class StatelessProvider extends JsonRpcProvider {
-    /**
-     * Minimum number of matching attestations required to consider a response valid
-     */
     minimumRequiredAttestations;
     identities;
     constructor(url, identities, minimumRequiredAttestations, network, options) {
@@ -15,7 +12,6 @@ export class StatelessProvider extends JsonRpcProvider {
         this.minimumRequiredAttestations = minimumRequiredAttestations || 1;
     }
     async _send(payload) {
-        // Configure a POST connection for the requested method
         const request = this._getConnection();
         request.body = JSON.stringify(payload);
         request.setHeader("content-type", "application/json");
@@ -29,6 +25,9 @@ export class StatelessProvider extends JsonRpcProvider {
         // We need to construct an ordered list of identities to use for verification
         for (let i = 0; i < resp.length; i++) {
             const result = resp[i];
+            if (resp.length > 1 && i == 0 && result.attestations) {
+                this.identities = result.attestations.map((attestation) => attestation.identity);
+            }
             const isValid = await verifyAttestedJsonRpcResponse(result, this.minimumRequiredAttestations, this.identities);
             if (!isValid) {
                 throw new Error(`Request did not meet the attestation threshold of ${this.minimumRequiredAttestations}.`);
@@ -39,9 +38,23 @@ export class StatelessProvider extends JsonRpcProvider {
     }
 }
 async function verifyAttestedJsonRpcResponse(response, minimumRequiredAttestations = 1, identities) {
-    // Generate hash of the response result
-    const resultBytes = Buffer.from(JSON.stringify(response.result));
-    const hash = crypto.createHash("sha256").update(resultBytes).digest();
+    let resultHashes = [];
+    if (Array.isArray(response.result)) {
+        for (const result of response.result) {
+            if (!result.timestamp) {
+                result.timestamp = "0x0";
+            }
+            const stringifiedResult = JSON.stringify(result);
+            const resultBytes = Buffer.from(stringifiedResult);
+            const hash = crypto.createHash("sha256").update(resultBytes).digest("hex");
+            resultHashes.push(hash);
+        }
+    }
+    else {
+        const resultBytes = Buffer.from(JSON.stringify(response.result));
+        const hash = crypto.createHash("sha256").update(resultBytes).digest("hex");
+        resultHashes = [hash];
+    }
     const validAttestations = [];
     for (const [i, attestation] of response.attestations.entries()) {
         // There's a chance the attestation does not have an identity if it's a batch response
@@ -50,33 +63,57 @@ async function verifyAttestedJsonRpcResponse(response, minimumRequiredAttestatio
             attestation.identity = identities[i];
         }
         // If identities are provided, only use attestations from those identities
-        // if (identities && !identities.includes(attestation.identity)) {
-        //   continue;
-        // }
-        const sshPublicKeyStr = await publicKeyFromIdentity(attestation.identity);
-        const key = sshpk.parseKey(sshPublicKeyStr, "ssh");
+        if (identities && !identities.includes(attestation.identity)) {
+            continue;
+        }
+        let sshPublicKey;
+        try {
+            sshPublicKey = await publicKeyFromIdentity(attestation.identity);
+        }
+        catch (error) {
+            continue;
+        }
+        const key = sshpk.parseKey(sshPublicKey, "ssh");
         if (key.type !== "ed25519") {
             throw new Error("The provided key is not an ed25519 key");
         }
         // @ts-ignore
         const publicKeyUint8Array = new Uint8Array(key.part.A.data);
-        if (!verifyAttestation(attestation, publicKeyUint8Array, hash)) {
+        const isValid = verifyAttestation(attestation, publicKeyUint8Array, resultHashes);
+        if (!isValid) {
             continue;
         }
         validAttestations.push(attestation);
     }
-    // Count the number of attestations for each message
-    const msgCounts = {};
-    for (const attestation of validAttestations) {
-        msgCounts[attestation.msg] = (msgCounts[attestation.msg] || 0) + 1;
-    }
-    // Determine if consensus threshold is met
-    return Object.values(msgCounts).some((count) => count >= minimumRequiredAttestations);
+    return validAttestations.length >= minimumRequiredAttestations;
 }
-function verifyAttestation(attestation, publicKey, hash) {
-    const signatureBytes = Buffer.from(attestation.signature, "hex");
+function verifyAttestation(attestation, publicKey, resultHashes) {
+    if (attestation.msgs && attestation.msgs.length > 0 && attestation.signatures) {
+        const isSubset = resultHashes.every(hash => attestation.msgs?.includes(hash));
+        if (!isSubset) {
+            return false;
+        }
+        // For multiple messages, each one is already hashed
+        return attestation.msgs.every((msg, index) => {
+            if (!attestation.signatures)
+                return false;
+            return verifySignature(msg, attestation.signatures[index], publicKey, attestation.hashAlgo);
+        });
+    }
+    else if (attestation.msg && attestation.signature) {
+        // The msg field is already a hash, so compare directly with resultHashes
+        const isHashInResult = resultHashes.includes(attestation.msg);
+        // Verify the signature using the pre-hashed msg
+        return isHashInResult && verifySignature(attestation.msg, attestation.signature, publicKey, attestation.hashAlgo);
+    }
+    return false;
+}
+function verifySignature(msgHash, signature, publicKey, hashAlgo) {
+    const signatureBytes = Buffer.from(signature, "hex");
     const signatureUint8Array = new Uint8Array(signatureBytes);
-    return nacl.sign.detached.verify(new Uint8Array(hash), signatureUint8Array, publicKey);
+    // As msg is already a hash, we convert it back to bytes to verify the signature
+    const msgHashBytes = Buffer.from(msgHash, 'hex');
+    return nacl.sign.detached.verify(msgHashBytes, signatureUint8Array, publicKey);
 }
 async function publicKeyFromIdentity(identity) {
     const url = `${identity}/.well-known/stateless-key`;
