@@ -4,7 +4,13 @@ import * as nacl from "tweetnacl";
 import { FetchRequest } from "../utils/index.js";
 import { JsonRpcProvider, } from "./provider-jsonrpc";
 export class StatelessProvider extends JsonRpcProvider {
+    /**
+     * Minimum number of matching attestations required to consider a response valid
+     */
     minimumRequiredAttestations;
+    /**
+     * The expected identities for the attestations
+     */
     identities;
     constructor(url, identities, minimumRequiredAttestations, network, options) {
         super(url, network, options);
@@ -41,6 +47,9 @@ async function verifyAttestedJsonRpcResponse(response, minimumRequiredAttestatio
     let resultHashes = [];
     if (Array.isArray(response.result)) {
         for (const result of response.result) {
+            // Our attestation code in the ethereum client adds this field by default,
+            // this is not ideal and should be revisited - fields that don't come from provider responses,
+            // shouldn't be included by default
             if (!result.timestamp) {
                 result.timestamp = "0x0";
             }
@@ -88,12 +97,13 @@ async function verifyAttestedJsonRpcResponse(response, minimumRequiredAttestatio
     return validAttestations.length >= minimumRequiredAttestations;
 }
 function verifyAttestation(attestation, publicKey, resultHashes) {
+    // Calls like `eth_getLogs` return a list of message hashes and signatures,
+    // so we need to make sure the logs returned in the response are backed by the minimum amount of required attestations
     if (attestation.msgs && attestation.msgs.length > 0 && attestation.signatures) {
         const isSubset = resultHashes.every(hash => attestation.msgs?.includes(hash));
         if (!isSubset) {
             return false;
         }
-        // For multiple messages, each one is already hashed
         return attestation.msgs.every((msg, index) => {
             if (!attestation.signatures)
                 return false;
@@ -101,9 +111,7 @@ function verifyAttestation(attestation, publicKey, resultHashes) {
         });
     }
     else if (attestation.msg && attestation.signature) {
-        // The msg field is already a hash, so compare directly with resultHashes
         const isHashInResult = resultHashes.includes(attestation.msg);
-        // Verify the signature using the pre-hashed msg
         return isHashInResult && verifySignature(attestation.msg, attestation.signature, publicKey, attestation.hashAlgo);
     }
     return false;
@@ -111,7 +119,6 @@ function verifyAttestation(attestation, publicKey, resultHashes) {
 function verifySignature(msgHash, signature, publicKey, hashAlgo) {
     const signatureBytes = Buffer.from(signature, "hex");
     const signatureUint8Array = new Uint8Array(signatureBytes);
-    // As msg is already a hash, we convert it back to bytes to verify the signature
     const msgHashBytes = Buffer.from(msgHash, 'hex');
     return nacl.sign.detached.verify(msgHashBytes, signatureUint8Array, publicKey);
 }
