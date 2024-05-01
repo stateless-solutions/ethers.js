@@ -134,5 +134,5 @@
     "test-esm": "mocha --reporter ./reporter.cjs ./lib.esm/_tests/test-*.js"
   },
   "sideEffects": false,
-  "version": "6.8.1-stateless-3"
+  "version": "6.8.1-stateless-4"
 }

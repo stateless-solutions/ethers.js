@@ -2,9 +2,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.StatelessProvider = void 0;
 const tslib_1 = require("tslib");
-const crypto = tslib_1.__importStar(require("crypto"));
-const sshpk = tslib_1.__importStar(require("sshpk"));
-const nacl = tslib_1.__importStar(require("tweetnacl"));
+const crypto_1 = tslib_1.__importDefault(require("crypto"));
+const sshpk_1 = tslib_1.__importDefault(require("sshpk"));
+const tweetnacl_1 = tslib_1.__importDefault(require("tweetnacl"));
 const index_js_1 = require("../utils/index.js");
 const provider_jsonrpc_1 = require("./provider-jsonrpc");
 class StatelessProvider extends provider_jsonrpc_1.JsonRpcProvider {
@@ -12,12 +12,16 @@ class StatelessProvider extends provider_jsonrpc_1.JsonRpcProvider {
      * Minimum number of matching attestations required to consider a response valid
      */
     minimumRequiredAttestations;
-    constructor(url, network, options, minimumRequiredAttestations) {
+    /**
+     * The expected identities for the attestations
+     */
+    identities;
+    constructor(url, identities, minimumRequiredAttestations, network, options) {
         super(url, network, options);
+        this.identities = identities;
         this.minimumRequiredAttestations = minimumRequiredAttestations || 1;
     }
     async _send(payload) {
-        // Configure a POST connection for the requested method
         const request = this._getConnection();
         request.body = JSON.stringify(payload);
         request.setHeader("content-type", "application/json");
@@ -27,15 +31,14 @@ class StatelessProvider extends provider_jsonrpc_1.JsonRpcProvider {
         if (!Array.isArray(resp)) {
             resp = [resp];
         }
-        let identities;
         // If it's a batch request, the identity is only included in the first response from the batch
         // We need to construct an ordered list of identities to use for verification
         for (let i = 0; i < resp.length; i++) {
             const result = resp[i];
             if (resp.length > 1 && i == 0 && result.attestations) {
-                identities = result.attestations.map((attestation) => attestation.identity);
+                this.identities = result.attestations.map((attestation) => attestation.identity);
             }
-            const isValid = await verifyAttestedJsonRpcResponse(result, this.minimumRequiredAttestations, identities);
+            const isValid = await verifyAttestedJsonRpcResponse(result, this.minimumRequiredAttestations, this.identities);
             if (!isValid) {
                 throw new Error(`Request did not meet the attestation threshold of ${this.minimumRequiredAttestations}.`);
             }
@@ -46,9 +49,26 @@ class StatelessProvider extends provider_jsonrpc_1.JsonRpcProvider {
 }
 exports.StatelessProvider = StatelessProvider;
 async function verifyAttestedJsonRpcResponse(response, minimumRequiredAttestations = 1, identities) {
-    // Generate hash of the response result
-    const resultBytes = Buffer.from(JSON.stringify(response.result));
-    const hash = crypto.createHash("sha256").update(resultBytes).digest();
+    let resultHashes = [];
+    if (Array.isArray(response.result)) {
+        for (const result of response.result) {
+            // Our attestation code in the ethereum client adds this field by default,
+            // this is not ideal and should be revisited - fields that don't come from provider responses,
+            // shouldn't be included by default
+            if (!result.timestamp) {
+                result.timestamp = "0x0";
+            }
+            const stringifiedResult = JSON.stringify(result);
+            const resultBytes = Buffer.from(stringifiedResult);
+            const hash = crypto_1.default.createHash("sha256").update(resultBytes).digest("hex");
+            resultHashes.push(hash);
+        }
+    }
+    else {
+        const resultBytes = Buffer.from(JSON.stringify(response.result));
+        const hash = crypto_1.default.createHash("sha256").update(resultBytes).digest("hex");
+        resultHashes = [hash];
+    }
     const validAttestations = [];
     for (const [i, attestation] of response.attestations.entries()) {
         // There's a chance the attestation does not have an identity if it's a batch response
@@ -57,33 +77,67 @@ async function verifyAttestedJsonRpcResponse(response, minimumRequiredAttestatio
             attestation.identity = identities[i];
         }
         // If identities are provided, only use attestations from those identities
-        // if (identities && !identities.includes(attestation.identity)) {
-        //   continue;
-        // }
-        const sshPublicKeyStr = await publicKeyFromIdentity(attestation.identity);
-        const key = sshpk.parseKey(sshPublicKeyStr, "ssh");
+        if (identities && !identities.includes(attestation.identity)) {
+            continue;
+        }
+        let sshPublicKey;
+        try {
+            sshPublicKey = await publicKeyFromIdentity(attestation.identity);
+        }
+        catch (error) {
+            continue;
+        }
+        const key = sshpk_1.default.parseKey(sshPublicKey, "ssh");
         if (key.type !== "ed25519") {
             throw new Error("The provided key is not an ed25519 key");
         }
         // @ts-ignore
         const publicKeyUint8Array = new Uint8Array(key.part.A.data);
-        if (!verifyAttestation(attestation, publicKeyUint8Array, hash)) {
+        const isValid = verifyAttestation(attestation, publicKeyUint8Array, resultHashes);
+        if (!isValid) {
             continue;
         }
         validAttestations.push(attestation);
     }
-    // Count the number of attestations for each message
-    const msgCounts = {};
-    for (const attestation of validAttestations) {
-        msgCounts[attestation.msg] = (msgCounts[attestation.msg] || 0) + 1;
-    }
-    // Determine if consensus threshold is met
-    return Object.values(msgCounts).some((count) => count >= minimumRequiredAttestations);
+    return validAttestations.length >= minimumRequiredAttestations;
 }
-function verifyAttestation(attestation, publicKey, hash) {
-    const signatureBytes = Buffer.from(attestation.signature, "hex");
-    const signatureUint8Array = new Uint8Array(signatureBytes);
-    return nacl.sign.detached.verify(new Uint8Array(hash), signatureUint8Array, publicKey);
+function verifyAttestation(attestation, publicKey, resultHashes) {
+    // Calls like `eth_getLogs` return a list of message hashes and signatures,
+    // so we need to make sure the logs returned in the response are backed by the minimum amount of required attestations
+    if (attestation.msgs && attestation.msgs.length > 0 && attestation.signatures) {
+        const isSubset = resultHashes.every(hash => attestation.msgs?.includes(hash));
+        if (!isSubset) {
+            return false;
+        }
+        return attestation.msgs.every((msg, index) => {
+            if (!attestation.signatures)
+                return false;
+            return verifySignature(msg, attestation.signatures[index], publicKey, attestation.hashAlgo);
+        });
+    }
+    else if (attestation.msg && attestation.signature) {
+        const isHashInResult = resultHashes.includes(attestation.msg);
+        return isHashInResult && verifySignature(attestation.msg, attestation.signature, publicKey, attestation.hashAlgo);
+    }
+    return false;
+}
+function verifySignature(msgHash, signature, publicKey, hashAlgo) {
+    try {
+        if (!publicKey)
+            throw new Error("Public key is undefined.");
+        if (!msgHash)
+            throw new Error("Message hash is undefined.");
+        if (!signature)
+            throw new Error("Signature is undefined.");
+        const signatureBytes = Buffer.from(signature, "hex");
+        const signatureUint8Array = new Uint8Array(signatureBytes);
+        const msgHashBytes = Buffer.from(msgHash, 'hex');
+        return tweetnacl_1.default.sign.detached.verify(msgHashBytes, signatureUint8Array, publicKey);
+    }
+    catch (error) {
+        console.error("Verification failed:", error);
+        return false;
+    }
 }
 async function publicKeyFromIdentity(identity) {
     const url = `${identity}/.well-known/stateless-key`;

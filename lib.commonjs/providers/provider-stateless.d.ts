@@ -1,4 +1,3 @@
-import { FetchRequest } from "../utils/index.js";
 import type { Networkish } from "./network.js";
 import { JsonRpcApiProviderOptions, JsonRpcPayload, JsonRpcProvider, JsonRpcResult } from "./provider-jsonrpc";
 /**
@@ -6,9 +5,10 @@ import { JsonRpcApiProviderOptions, JsonRpcPayload, JsonRpcProvider, JsonRpcResu
  */
 export type Attestation = {
     /**
-     * The signature of the attester
+     * The signature(s) of the attested message(s)
      */
-    signature: string;
+    signature?: string;
+    signatures?: string[];
     /**
      * The signature format (i.e. "ssh-ed25519")
      */
@@ -18,21 +18,16 @@ export type Attestation = {
      */
     hashAlgo: string;
     /**
-     * The hashed message data
+     * The hashed message(s) data
      */
-    msg: string;
+    msg?: string;
+    msgs?: string[];
     /**
-     * The identifier of the attester
+     * The domain where the attester holds his public key to verify the signatures
      */
     identity: string;
 };
-/**
- *  A JSON-RPC result, which are returned on success from a JSON-RPC server.
- */
 export type AttestedJsonRpcResult = JsonRpcResult & {
-    /**
-     * Attestation data for the request.
-     */
     attestations: Array<Attestation>;
 };
 export declare class StatelessProvider extends JsonRpcProvider {
@@ -40,7 +35,11 @@ export declare class StatelessProvider extends JsonRpcProvider {
      * Minimum number of matching attestations required to consider a response valid
      */
     minimumRequiredAttestations: number;
-    constructor(url?: string | FetchRequest, network?: Networkish, options?: JsonRpcApiProviderOptions, minimumRequiredAttestations?: number);
+    /**
+     * The expected identities for the attestations
+     */
+    identities: string[];
+    constructor(url: string, identities: string[], minimumRequiredAttestations?: number, network?: Networkish, options?: JsonRpcApiProviderOptions);
     _send(payload: JsonRpcPayload | Array<JsonRpcPayload>): Promise<Array<JsonRpcResult>>;
 }
 //# sourceMappingURL=provider-stateless.d.ts.map
