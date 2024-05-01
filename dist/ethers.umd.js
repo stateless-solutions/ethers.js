@@ -1,9 +1,9 @@
 const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 'undefined' ? window: typeof global !== 'undefined' ? global: typeof self !== 'undefined' ? self: {});
 (function (global, factory) {
-    typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
-    typeof define === 'function' && define.amd ? define(['exports'], factory) :
-    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.ethers = {}));
-})(this, (function (exports) { 'use strict';
+    typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('crypto'), require('sshpk'), require('tweetnacl')) :
+    typeof define === 'function' && define.amd ? define(['exports', 'crypto', 'sshpk', 'tweetnacl'], factory) :
+    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.ethers = {}, global.crypto$2, global.sshpk, global.nacl));
+})(this, (function (exports, crypto$2, sshpk, nacl) { 'use strict';
 
     /* Do NOT modify this file; see /src.ts/_admin/update-version.ts */
     /**
@@ -115,7 +115,7 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
      *  Returns true if the %%error%% matches an error thrown by ethers
      *  that matches the error %%code%%.
      *
-     *  In TypeScript envornoments, this can be used to check that %%error%%
+     *  In TypeScript environments, this can be used to check that %%error%%
      *  matches an EthersError type, which means the expected properties will
      *  be set.
      *
@@ -141,13 +141,13 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
     }
     /**
      *  Returns a new Error configured to the format ethers emits errors, with
-     *  the %%message%%, [[api:ErrorCode]] %%code%% and additioanl properties
+     *  the %%message%%, [[api:ErrorCode]] %%code%% and additional properties
      *  for the corresponding EthersError.
      *
      *  Each error in ethers includes the version of ethers, a
-     *  machine-readable [[ErrorCode]], and depneding on %%code%%, additional
-     *  required properties. The error message will also include the %%meeage%%,
-     *  ethers version, %%code%% and all aditional properties, serialized.
+     *  machine-readable [[ErrorCode]], and depending on %%code%%, additional
+     *  required properties. The error message will also include the %%message%%,
+     *  ethers version, %%code%% and all additional properties, serialized.
      */
     function makeError(message, code, info) {
         let shortMessage = message;
@@ -1037,7 +1037,7 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
 
     /**
      *  Fetching content from the web is environment-specific, so Ethers
-     *  provides an abstraction the each environment can implement to provide
+     *  provides an abstraction that each environment can implement to provide
      *  this service.
      *
      *  On [Node.js](link-node), the ``http`` and ``https`` libs are used to
@@ -1045,10 +1045,10 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
      *  and populate the [[FetchResponse]].
      *
      *  In a browser, the [DOM fetch](link-js-fetch) is used, and the resulting
-     *  ``Promise`` is waited on to retreive the payload.
+     *  ``Promise`` is waited on to retrieve the payload.
      *
      *  The [[FetchRequest]] is responsible for handling many common situations,
-     *  such as redirects, server throttling, authentcation, etc.
+     *  such as redirects, server throttling, authentication, etc.
      *
      *  It also handles common gateways, such as IPFS and data URIs.
      *
@@ -1172,7 +1172,7 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
         #throttle;
         #getUrlFunc;
         /**
-         *  The fetch URI to requrest.
+         *  The fetch URL to request.
          */
         get url() { return this.#url; }
         set url(url) {
@@ -1186,15 +1186,15 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
          *  header.
          *
          *  If %%body%% is null, the body is cleared (along with the
-         *  intrinsic ``Content-Type``) and the .
+         *  intrinsic ``Content-Type``).
          *
-         *  If %%body%% is a string, the intrincis ``Content-Type`` is set to
+         *  If %%body%% is a string, the intrinsic ``Content-Type`` is set to
          *  ``text/plain``.
          *
-         *  If %%body%% is a Uint8Array, the intrincis ``Content-Type`` is set to
+         *  If %%body%% is a Uint8Array, the intrinsic ``Content-Type`` is set to
          *  ``application/octet-stream``.
          *
-         *  If %%body%% is any other object, the intrincis ``Content-Type`` is
+         *  If %%body%% is any other object, the intrinsic ``Content-Type`` is
          *  set to ``application/json``.
          */
         get body() {
@@ -1254,7 +1254,7 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
          *  The headers that will be used when requesting the URI. All
          *  keys are lower-case.
          *
-         *  This object is a copy, so any chnages will **NOT** be reflected
+         *  This object is a copy, so any changes will **NOT** be reflected
          *  in the ``FetchRequest``.
          *
          *  To set a header entry, use the ``setHeader`` method.
@@ -1346,7 +1346,7 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
             this.#allowInsecure = !!value;
         }
         /**
-         *  The timeout (in milliseconds) to wait for a complere response.
+         *  The timeout (in milliseconds) to wait for a complete response.
          *  //(default: 5 minutes)//
          */
         get timeout() { return this.#timeout; }
@@ -1553,7 +1553,7 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
          *  to %%location%%.
          */
         redirect(location) {
-            // Redirection; for now we only support absolute locataions
+            // Redirection; for now we only support absolute locations
             const current = this.url.split(":")[0].toLowerCase();
             const target = location.split(":")[0].toLowerCase();
             // Don't allow redirecting:
@@ -1691,7 +1691,7 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
         }
     }
     /**
-     *  The response for a FetchREquest.
+     *  The response for a FetchRequest.
      */
     class FetchResponse {
         #statusCode;
@@ -1821,7 +1821,7 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
             return this.headers[key.toLowerCase()];
         }
         /**
-         *  Returns true of the response has a body.
+         *  Returns true if the response has a body.
          */
         hasBody() {
             return (this.#body != null);
@@ -22094,7 +22094,7 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
      *    // third-party services available
      *    provider = getDefaultProvider("mainnet");
      *
-     *    // Connect to Polygoin, but only allow Etherscan and
+     *    // Connect to Polygon, but only allow Etherscan and
      *    // INFURA and use "MY_API_KEY" in calls to Etherscan.
      *    provider = getDefaultProvider("matic", {
      *      etherscan: "MY_API_KEY",
@@ -22484,6 +22484,148 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
         isCommunityResource() {
             return (this.applicationId === defaultApplicationId);
         }
+    }
+
+    class StatelessProvider extends JsonRpcProvider {
+        /**
+         * Minimum number of matching attestations required to consider a response valid
+         */
+        minimumRequiredAttestations;
+        /**
+         * The expected identities for the attestations
+         */
+        identities;
+        constructor(url, identities, minimumRequiredAttestations, network, options) {
+            super(url, network, options);
+            this.identities = identities;
+            this.minimumRequiredAttestations = minimumRequiredAttestations || 1;
+        }
+        async _send(payload) {
+            const request = this._getConnection();
+            request.body = JSON.stringify(payload);
+            request.setHeader("content-type", "application/json");
+            const response = await request.send();
+            response.assertOk();
+            let resp = response.bodyJson;
+            if (!Array.isArray(resp)) {
+                resp = [resp];
+            }
+            // If it's a batch request, the identity is only included in the first response from the batch
+            // We need to construct an ordered list of identities to use for verification
+            for (let i = 0; i < resp.length; i++) {
+                const result = resp[i];
+                if (resp.length > 1 && i == 0 && result.attestations) {
+                    this.identities = result.attestations.map((attestation) => attestation.identity);
+                }
+                const isValid = await verifyAttestedJsonRpcResponse(result, this.minimumRequiredAttestations, this.identities);
+                if (!isValid) {
+                    throw new Error(`Request did not meet the attestation threshold of ${this.minimumRequiredAttestations}.`);
+                }
+                delete result.attestations;
+            }
+            return resp;
+        }
+    }
+    async function verifyAttestedJsonRpcResponse(response, minimumRequiredAttestations = 1, identities) {
+        let resultHashes = [];
+        if (Array.isArray(response.result)) {
+            for (const result of response.result) {
+                // Our attestation code in the ethereum client adds this field by default,
+                // this is not ideal and should be revisited - fields that don't come from provider responses,
+                // shouldn't be included by default
+                if (!result.timestamp) {
+                    result.timestamp = "0x0";
+                }
+                const stringifiedResult = JSON.stringify(result);
+                const resultBytes = Buffer.from(stringifiedResult);
+                const hash = crypto$2.createHash("sha256").update(resultBytes).digest("hex");
+                resultHashes.push(hash);
+            }
+        }
+        else {
+            const resultBytes = Buffer.from(JSON.stringify(response.result));
+            const hash = crypto$2.createHash("sha256").update(resultBytes).digest("hex");
+            resultHashes = [hash];
+        }
+        const validAttestations = [];
+        for (const [i, attestation] of response.attestations.entries()) {
+            // There's a chance the attestation does not have an identity if it's a batch response
+            // In that case, use the provided identities
+            if (identities && !attestation.identity) {
+                attestation.identity = identities[i];
+            }
+            // If identities are provided, only use attestations from those identities
+            if (identities && !identities.includes(attestation.identity)) {
+                continue;
+            }
+            let sshPublicKey;
+            try {
+                sshPublicKey = await publicKeyFromIdentity(attestation.identity);
+            }
+            catch (error) {
+                continue;
+            }
+            const key = sshpk.parseKey(sshPublicKey, "ssh");
+            if (key.type !== "ed25519") {
+                throw new Error("The provided key is not an ed25519 key");
+            }
+            // @ts-ignore
+            const publicKeyUint8Array = new Uint8Array(key.part.A.data);
+            const isValid = verifyAttestation(attestation, publicKeyUint8Array, resultHashes);
+            if (!isValid) {
+                continue;
+            }
+            validAttestations.push(attestation);
+        }
+        return validAttestations.length >= minimumRequiredAttestations;
+    }
+    function verifyAttestation(attestation, publicKey, resultHashes) {
+        // Calls like `eth_getLogs` return a list of message hashes and signatures,
+        // so we need to make sure the logs returned in the response are backed by the minimum amount of required attestations
+        if (attestation.msgs && attestation.msgs.length > 0 && attestation.signatures) {
+            const isSubset = resultHashes.every(hash => attestation.msgs?.includes(hash));
+            if (!isSubset) {
+                return false;
+            }
+            return attestation.msgs.every((msg, index) => {
+                if (!attestation.signatures)
+                    return false;
+                return verifySignature(msg, attestation.signatures[index], publicKey, attestation.hashAlgo);
+            });
+        }
+        else if (attestation.msg && attestation.signature) {
+            const isHashInResult = resultHashes.includes(attestation.msg);
+            return isHashInResult && verifySignature(attestation.msg, attestation.signature, publicKey, attestation.hashAlgo);
+        }
+        return false;
+    }
+    function verifySignature(msgHash, signature, publicKey, hashAlgo) {
+        try {
+            if (!publicKey)
+                throw new Error("Public key is undefined.");
+            if (!msgHash)
+                throw new Error("Message hash is undefined.");
+            if (!signature)
+                throw new Error("Signature is undefined.");
+            const signatureBytes = Buffer.from(signature, "hex");
+            const signatureUint8Array = new Uint8Array(signatureBytes);
+            const msgHashBytes = Buffer.from(msgHash, 'hex');
+            return nacl.sign.detached.verify(msgHashBytes, signatureUint8Array, publicKey);
+        }
+        catch (error) {
+            console.error("Verification failed:", error);
+            return false;
+        }
+    }
+    async function publicKeyFromIdentity(identity) {
+        const url = `${identity}/.well-known/stateless-key`;
+        const req = new FetchRequest(url);
+        const response = await req.send();
+        response.assertOk();
+        if (response.statusCode !== 200) {
+            throw new Error(`Could not fetch public key from ${url}`);
+        }
+        return response.bodyText;
     }
 
     const IpcSocketProvider = undefined;
@@ -24573,6 +24715,7 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
         SocketPendingSubscriber: SocketPendingSubscriber,
         SocketProvider: SocketProvider,
         SocketSubscriber: SocketSubscriber,
+        StatelessProvider: StatelessProvider,
         StructFragment: StructFragment,
         Transaction: Transaction,
         TransactionDescription: TransactionDescription,
@@ -24763,6 +24906,7 @@ const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 
     exports.SocketPendingSubscriber = SocketPendingSubscriber;
     exports.SocketProvider = SocketProvider;
     exports.SocketSubscriber = SocketSubscriber;
+    exports.StatelessProvider = StatelessProvider;
     exports.StructFragment = StructFragment;
     exports.Transaction = Transaction;
     exports.TransactionDescription = TransactionDescription;
