@@ -6,8 +6,8 @@ const crypto_1 = tslib_1.__importDefault(require("crypto"));
 const sshpk_1 = tslib_1.__importDefault(require("sshpk"));
 const tweetnacl_1 = tslib_1.__importDefault(require("tweetnacl"));
 const index_js_1 = require("../utils/index.js");
-const provider_jsonrpc_1 = require("./provider-jsonrpc");
-class StatelessProvider extends provider_jsonrpc_1.JsonRpcProvider {
+const provider_jsonrpc_js_1 = require("./provider-jsonrpc.js");
+class StatelessProvider extends provider_jsonrpc_js_1.JsonRpcProvider {
     /**
      * Minimum number of matching attestations required to consider a response valid
      */

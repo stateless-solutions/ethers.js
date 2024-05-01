@@ -1,5 +1,5 @@
 import type { Networkish } from "./network.js";
-import { JsonRpcApiProviderOptions, JsonRpcPayload, JsonRpcProvider, JsonRpcResult } from "./provider-jsonrpc";
+import { JsonRpcApiProviderOptions, JsonRpcPayload, JsonRpcProvider, JsonRpcResult } from "./provider-jsonrpc.js";
 /**
  * An attestation consists of the signature of the attester and cryptographic proof
  */

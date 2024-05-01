@@ -2,7 +2,7 @@ import crypto from "crypto";
 import sshpk from "sshpk";
 import nacl from "tweetnacl";
 import { FetchRequest } from "../utils/index.js";
-import { JsonRpcProvider, } from "./provider-jsonrpc";
+import { JsonRpcProvider, } from "./provider-jsonrpc.js";
 export class StatelessProvider extends JsonRpcProvider {
     /**
      * Minimum number of matching attestations required to consider a response valid

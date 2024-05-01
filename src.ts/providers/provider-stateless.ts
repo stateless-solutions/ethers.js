@@ -8,7 +8,7 @@ import {
   JsonRpcPayload,
   JsonRpcProvider,
   JsonRpcResult,
-} from "./provider-jsonrpc";
+} from "./provider-jsonrpc.js";
 
 /**
  * An attestation consists of the signature of the attester and cryptographic proof
