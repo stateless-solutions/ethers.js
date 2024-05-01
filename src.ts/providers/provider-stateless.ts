@@ -1,6 +1,6 @@
-import * as crypto from "crypto";
-import * as sshpk from "sshpk";
-import * as nacl from "tweetnacl";
+import crypto from "crypto";
+import sshpk from "sshpk";
+import nacl from "tweetnacl";
 import { FetchRequest } from "../utils/index.js";
 import type { Networkish } from "./network.js";
 import {
@@ -203,10 +203,20 @@ function verifyAttestation(attestation: Attestation, publicKey: Uint8Array, resu
 }
 
 function verifySignature(msgHash: string, signature: string, publicKey: Uint8Array, hashAlgo: string): boolean {
-  const signatureBytes = Buffer.from(signature, "hex");
-  const signatureUint8Array = new Uint8Array(signatureBytes);
-  const msgHashBytes = Buffer.from(msgHash, 'hex');
-  return nacl.sign.detached.verify(msgHashBytes, signatureUint8Array, publicKey);
+  try {
+    if (!publicKey) throw new Error("Public key is undefined.");
+    if (!msgHash) throw new Error("Message hash is undefined.");
+    if (!signature) throw new Error("Signature is undefined.");
+
+    const signatureBytes = Buffer.from(signature, "hex");
+    const signatureUint8Array = new Uint8Array(signatureBytes);
+    const msgHashBytes = Buffer.from(msgHash, 'hex');
+
+    return nacl.sign.detached.verify(msgHashBytes, signatureUint8Array, publicKey);
+  } catch (error) {
+    console.error("Verification failed:", error);
+    return false;
+  }
 }
 
 async function publicKeyFromIdentity(identity: string): Promise<string> {
