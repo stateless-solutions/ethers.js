@@ -23,6 +23,7 @@
   "description": "A complete and compact Ethereum library, for dapps, wallets and any other tools, with added support for Stateless's solution",
   "devDependencies": {
     "@rollup/plugin-node-resolve": "15.0.2",
+    "@types/debug": "^4.1.12",
     "@types/mocha": "9.1.1",
     "@types/semver": "7.5.0",
     "@types/sshpk": "^1.17.4",

@@ -6,6 +6,7 @@ import { FetchRequest } from "../utils/index.js";
 import type { Networkish } from "./network.js";
 import {
   JsonRpcApiProviderOptions,
+  JsonRpcError,
   JsonRpcPayload,
   JsonRpcProvider,
   JsonRpcResult,
@@ -47,6 +48,10 @@ export type AttestedJsonRpcResult = JsonRpcResult & {
   attestations: Array<Attestation>;
 };
 
+export type AttestedJsonRpcError = JsonRpcError & {
+  attestations: Array<Attestation>;
+};
+
 type AccessListItem = { address: string; storageKeys: Array<string> };
 
 export class StatelessProvider extends JsonRpcProvider {
@@ -81,6 +86,15 @@ export class StatelessProvider extends JsonRpcProvider {
   async _send(
     payload: JsonRpcPayload | Array<JsonRpcPayload>
   ): Promise<Array<JsonRpcResult>> {
+    if (this.prover) {
+      const payloads = Array.isArray(payload) ? payload : [payload];
+      for (let i = 0; i < payloads.length; i++) {
+        if (payloads[i].method === "eth_call") {
+          await this.verifyStatelessProof(payloads[i].params);
+        }
+      }
+    }
+
     const request = this._getConnection();
     request.body = JSON.stringify(payload);
     request.setHeader("content-type", "application/json");
@@ -93,6 +107,16 @@ export class StatelessProvider extends JsonRpcProvider {
     if (!Array.isArray(resp)) {
       resp = [resp];
     }
+
+    if (!this.prover) {
+      return await this.verifyAttestations(resp);
+    }
+
+    return resp as Array<JsonRpcResult>;
+  }
+
+  private async verifyAttestations(resp: any): Promise<Array<JsonRpcResult>> {
+    const responses: Array<JsonRpcResult> = [];
 
     // If it's a batch request, the identity is only included in the first response from the batch
     // We need to construct an ordered list of identities to use for verification
@@ -117,22 +141,23 @@ export class StatelessProvider extends JsonRpcProvider {
       }
 
       delete result.attestations;
+
+      responses.push(result);
     }
 
-    if (this.prover) {
-      const payloads = Array.isArray(payload) ? payload : [payload];
-      for (let i = 0; i < payloads.length; i++) {
-        if (payloads[i].method === "eth_call") {
-          await this.verifyStatelessProof(payloads[i].params);
-        }
-      }
-    }
+    return responses;
+  }
 
-    return resp as Array<JsonRpcResult>;
+  private extractDefinedProperties(
+    obj: Record<string, any>
+  ): Record<string, any> {
+    return Object.fromEntries(
+      Object.entries(obj).filter(([_, v]) => v !== undefined)
+    );
   }
 
   private async verifyStatelessProof(
-    params: Record<string, any>
+    params: Array<any> | Record<string, any>
   ): Promise<void> {
     const latestBlockNumber = await this.send("eth_blockNumber", []);
     const { stateRoot: stateRootHex } = await this.send(
@@ -141,17 +166,17 @@ export class StatelessProvider extends JsonRpcProvider {
     );
     const stateRoot = this.fromHexString(stateRootHex);
 
+    let createAccessListParams: Record<string, any>;
+
+    if (Array.isArray(params)) {
+      const [firstParam] = params;
+      createAccessListParams = this.extractDefinedProperties(firstParam);
+    } else {
+      createAccessListParams = this.extractDefinedProperties(params);
+    }
+
     const { accessList }: { accessList: AccessListItem[] } =
-      await this.prover!.send("eth_createAccessList", [
-        {
-          to: params.to,
-          data: params.data,
-          gas: params.gas,
-          gasPrice: params.gasPrice,
-          value: params.value,
-          from: params.from,
-        },
-      ]);
+      await this.prover!.send("eth_createAccessList", [createAccessListParams]);
 
     const {
       accountProof,
@@ -199,36 +224,49 @@ export class StatelessProvider extends JsonRpcProvider {
   }
 
   private async verifyAttestedJsonRpcResponse(
-    response: AttestedJsonRpcResult,
+    response: AttestedJsonRpcResult | AttestedJsonRpcError,
     minimumRequiredAttestations: number = 1,
     identities?: string[]
   ): Promise<boolean> {
-    let resultHashes: string[] = [];
+    let content: any;
+    let contentHashes: string[] = [];
 
-    if (Array.isArray(response.result)) {
-      for (const result of response.result) {
+    if ("result" in response) {
+      content = response.result;
+    } else if ("error" in response) {
+      content = response.error;
+    }
+
+    if (content === undefined) {
+      throw new Error(
+        "Response must contain either a result or an error field"
+      );
+    }
+
+    if (Array.isArray(content)) {
+      for (const item of content) {
         // Our attestation code in the ethereum client adds this field by default,
         // this is not ideal and should be revisited - fields that don't come from provider responses,
         // shouldn't be included by default
-        if (!result.timestamp) {
-          result.timestamp = "0x0";
+        if (!item.timestamp) {
+          item.timestamp = "0x0";
         }
 
-        const stringifiedResult = JSON.stringify(result);
-        const resultBytes = Buffer.from(stringifiedResult);
+        const stringifiedItem = JSON.stringify(item);
+        const itemBytes = Buffer.from(stringifiedItem);
         const hash = crypto
           .createHash("sha256")
-          .update(resultBytes)
+          .update(itemBytes)
           .digest("hex");
-        resultHashes.push(hash);
+        contentHashes.push(hash);
       }
     } else {
-      const resultBytes = Buffer.from(JSON.stringify(response.result));
+      const contentBytes = Buffer.from(JSON.stringify(content));
       const hash = crypto
         .createHash("sha256")
-        .update(resultBytes)
+        .update(contentBytes)
         .digest("hex");
-      resultHashes = [hash];
+      contentHashes = [hash];
     }
 
     const validAttestations: Attestation[] = [];
@@ -263,7 +301,7 @@ export class StatelessProvider extends JsonRpcProvider {
       const isValid = this.verifyAttestation(
         attestation,
         publicKeyUint8Array,
-        resultHashes
+        contentHashes
       );
 
       if (!isValid) {
