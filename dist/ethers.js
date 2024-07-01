@@ -1,7 +1,10 @@
 const __$G = (typeof globalThis !== 'undefined' ? globalThis: typeof window !== 'undefined' ? window: typeof global !== 'undefined' ? global: typeof self !== 'undefined' ? self: {});
-import crypto$2 from 'crypto';
+import crypto$3 from 'crypto';
 import sshpk from 'sshpk';
 import nacl from 'tweetnacl';
+import 'events';
+import debug from 'debug';
+import { Readable } from 'readable-stream';
 
 /* Do NOT modify this file; see /src.ts/_admin/update-version.ts */
 /**
@@ -201,7 +204,7 @@ function makeError(message, code, info) {
  *
  *  @see [[api:makeError]]
  */
-function assert(check, message, code, info) {
+function assert$2(check, message, code, info) {
     if (!check) {
         throw makeError(message, code, info);
     }
@@ -214,7 +217,7 @@ function assert(check, message, code, info) {
  *  any further code does not need additional compile-time checks.
  */
 function assertArgument(check, message, name, value) {
-    assert(check, message, "INVALID_ARGUMENT", { argument: name, value: value });
+    assert$2(check, message, "INVALID_ARGUMENT", { argument: name, value: value });
 }
 function assertArgumentCount(count, expectedCount, message) {
     if (message == null) {
@@ -223,11 +226,11 @@ function assertArgumentCount(count, expectedCount, message) {
     if (message) {
         message = ": " + message;
     }
-    assert(count >= expectedCount, "missing arguemnt" + message, "MISSING_ARGUMENT", {
+    assert$2(count >= expectedCount, "missing arguemnt" + message, "MISSING_ARGUMENT", {
         count: count,
         expectedCount: expectedCount
     });
-    assert(count <= expectedCount, "too many arguemnts" + message, "UNEXPECTED_ARGUMENT", {
+    assert$2(count <= expectedCount, "too many arguemnts" + message, "UNEXPECTED_ARGUMENT", {
         count: count,
         expectedCount: expectedCount
     });
@@ -259,7 +262,7 @@ const _normalizeForms = ["NFD", "NFC", "NFKD", "NFKC"].reduce((accum, form) => {
  *  Throws if the normalization %%form%% is not supported.
  */
 function assertNormalize(form) {
-    assert(_normalizeForms.indexOf(form) >= 0, "platform missing String.prototype.normalize", "UNSUPPORTED_OPERATION", {
+    assert$2(_normalizeForms.indexOf(form) >= 0, "platform missing String.prototype.normalize", "UNSUPPORTED_OPERATION", {
         operation: "String.prototype.normalize", info: { form }
     });
 }
@@ -279,7 +282,7 @@ function assertPrivate(givenGuard, guard, className) {
             method += ".";
             operation += " " + className;
         }
-        assert(false, `private constructor; use ${method}from* methods`, "UNSUPPORTED_OPERATION", {
+        assert$2(false, `private constructor; use ${method}from* methods`, "UNSUPPORTED_OPERATION", {
             operation
         });
     }
@@ -336,7 +339,7 @@ function getBytesCopy(value, name) {
  *  %%value%% is a valid [[DataHexString]] of %%length%% (if a //number//)
  *  bytes of data (e.g. ``0x1234`` is 2 bytes).
  */
-function isHexString(value, length) {
+function isHexString$1(value, length) {
     if (typeof (value) !== "string" || !value.match(/^0x[0-9A-Fa-f]*$/)) {
         return false;
     }
@@ -353,7 +356,7 @@ function isHexString(value, length) {
  *  data (i.e. a valid [[DataHexString]] or a Uint8Array).
  */
 function isBytesLike(value) {
-    return (isHexString(value, true) || (value instanceof Uint8Array));
+    return (isHexString$1(value, true) || (value instanceof Uint8Array));
 }
 const HexCharacters = "0123456789abcdef";
 /**
@@ -379,7 +382,7 @@ function concat(datas) {
  *  Returns the length of %%data%%, in bytes.
  */
 function dataLength(data) {
-    if (isHexString(data, true)) {
+    if (isHexString$1(data, true)) {
         return (data.length - 2) / 2;
     }
     return getBytes(data).length;
@@ -393,7 +396,7 @@ function dataLength(data) {
 function dataSlice(data, start, end) {
     const bytes = getBytes(data);
     if (end != null && end > bytes.length) {
-        assert(false, "cannot slice beyond data bounds", "BUFFER_OVERRUN", {
+        assert$2(false, "cannot slice beyond data bounds", "BUFFER_OVERRUN", {
             buffer: bytes, length: bytes.length, offset: end
         });
     }
@@ -412,7 +415,7 @@ function stripZerosLeft(data) {
 }
 function zeroPad(data, length, left) {
     const bytes = getBytes(data);
-    assert(length >= bytes.length, "padding exceeds data length", "BUFFER_OVERRUN", {
+    assert$2(length >= bytes.length, "padding exceeds data length", "BUFFER_OVERRUN", {
         buffer: new Uint8Array(bytes),
         length: length,
         offset: length + 1
@@ -473,7 +476,7 @@ const maxValue = 0x1fffffffffffff;
 function fromTwos(_value, _width) {
     const value = getUint(_value, "value");
     const width = BigInt(getNumber(_width, "width"));
-    assert((value >> width) === BN_0$a, "overflow", "NUMERIC_FAULT", {
+    assert$2((value >> width) === BN_0$a, "overflow", "NUMERIC_FAULT", {
         operation: "fromTwos", fault: "overflow", value: _value
     });
     // Top bit set; treat as a negative value
@@ -495,14 +498,14 @@ function toTwos(_value, _width) {
     const limit = (BN_1$5 << (width - BN_1$5));
     if (value < BN_0$a) {
         value = -value;
-        assert(value <= limit, "too low", "NUMERIC_FAULT", {
+        assert$2(value <= limit, "too low", "NUMERIC_FAULT", {
             operation: "toTwos", fault: "overflow", value: _value
         });
         const mask = (BN_1$5 << width) - BN_1$5;
         return ((~value) & mask) + BN_1$5;
     }
     else {
-        assert(value < limit, "too high", "NUMERIC_FAULT", {
+        assert$2(value < limit, "too high", "NUMERIC_FAULT", {
             operation: "toTwos", fault: "overflow", value: _value
         });
     }
@@ -549,7 +552,7 @@ function getBigInt(value, name) {
  */
 function getUint(value, name) {
     const result = getBigInt(value, name);
-    assert(result >= BN_0$a, "unsigned value cannot be negative", "NUMERIC_FAULT", {
+    assert$2(result >= BN_0$a, "unsigned value cannot be negative", "NUMERIC_FAULT", {
         fault: "overflow", operation: "getUint", value
     });
     return result;
@@ -618,7 +621,7 @@ function toBeHex(_value, _width) {
     }
     else {
         const width = getNumber(_width, "width");
-        assert(width * 2 >= result.length, `value exceeds width (${width} bytes)`, "NUMERIC_FAULT", {
+        assert$2(width * 2 >= result.length, `value exceeds width (${width} bytes)`, "NUMERIC_FAULT", {
             operation: "toBeHex",
             fault: "overflow",
             value: _value
@@ -998,11 +1001,11 @@ function toUtf8CodePoints(str, form) {
 function createGetUrl(options) {
     async function getUrl(req, _signal) {
         const protocol = req.url.split(":")[0].toLowerCase();
-        assert(protocol === "http" || protocol === "https", `unsupported protocol ${protocol}`, "UNSUPPORTED_OPERATION", {
+        assert$2(protocol === "http" || protocol === "https", `unsupported protocol ${protocol}`, "UNSUPPORTED_OPERATION", {
             info: { protocol },
             operation: "request"
         });
-        assert(protocol === "https" || !req.credentials || req.allowInsecureAuthentication, "insecure authorized connections unsupported", "UNSUPPORTED_OPERATION", {
+        assert$2(protocol === "https" || !req.credentials || req.allowInsecureAuthentication, "insecure authorized connections unsupported", "UNSUPPORTED_OPERATION", {
             operation: "request"
         });
         let signal = undefined;
@@ -1120,14 +1123,14 @@ class FetchCancelSignal {
         });
     }
     addListener(listener) {
-        assert(!this.#cancelled, "singal already cancelled", "UNSUPPORTED_OPERATION", {
+        assert$2(!this.#cancelled, "singal already cancelled", "UNSUPPORTED_OPERATION", {
             operation: "fetchCancelSignal.addCancelListener"
         });
         this.#listeners.push(listener);
     }
     get cancelled() { return this.#cancelled; }
     checkSignal() {
-        assert(!this.cancelled, "cancelled", "CANCELLED", {});
+        assert$2(!this.cancelled, "cancelled", "CANCELLED", {});
     }
 }
 // Check the signal, throwing if it is cancelled
@@ -1449,7 +1452,7 @@ class FetchRequest {
         if (attempt >= this.#throttle.maxAttempts) {
             return _response.makeServerError("exceeded maximum retry limit");
         }
-        assert(getTime$2() <= expires, "timeout", "TIMEOUT", {
+        assert$2(getTime$2() <= expires, "timeout", "TIMEOUT", {
             operation: "request.send", reason: "timeout", request: _request
         });
         if (delay > 0) {
@@ -1530,7 +1533,7 @@ class FetchRequest {
      *  Resolves to the response by sending the request.
      */
     send() {
-        assert(this.#signal == null, "request already sent", "UNSUPPORTED_OPERATION", { operation: "fetchRequest.send" });
+        assert$2(this.#signal == null, "request already sent", "UNSUPPORTED_OPERATION", { operation: "fetchRequest.send" });
         this.#signal = new FetchCancelSignal(this);
         return this.#send(0, getTime$2() + this.timeout, 0, this, new FetchResponse(0, "", {}, null, this));
     }
@@ -1539,7 +1542,7 @@ class FetchRequest {
      *  error to be rejected from the [[send]].
      */
     cancel() {
-        assert(this.#signal != null, "request has not been sent", "UNSUPPORTED_OPERATION", { operation: "fetchRequest.cancel" });
+        assert$2(this.#signal != null, "request has not been sent", "UNSUPPORTED_OPERATION", { operation: "fetchRequest.cancel" });
         const signal = fetchSignals.get(this);
         if (!signal) {
             throw new Error("missing signal; should not happen");
@@ -1558,7 +1561,7 @@ class FetchRequest {
         // - non-GET requests
         // - downgrading the security (e.g. https => http)
         // - to non-HTTP (or non-HTTPS) protocols [this could be relaxed?]
-        assert(this.method === "GET" && (current !== "https" || target !== "http") && location.match(/^https?:/), `unsupported redirect`, "UNSUPPORTED_OPERATION", {
+        assert$2(this.method === "GET" && (current !== "https" || target !== "http") && location.match(/^https?:/), `unsupported redirect`, "UNSUPPORTED_OPERATION", {
             operation: `redirect(${this.method} ${JSON.stringify(this.url)} => ${JSON.stringify(location)})`
         });
         // Create a copy of this request, with a new URL
@@ -1730,7 +1733,7 @@ class FetchResponse {
             return (this.#body == null) ? "" : toUtf8String(this.#body);
         }
         catch (error) {
-            assert(false, "response body is not valid UTF-8 data", "UNSUPPORTED_OPERATION", {
+            assert$2(false, "response body is not valid UTF-8 data", "UNSUPPORTED_OPERATION", {
                 operation: "bodyText", info: { response: this }
             });
         }
@@ -1746,7 +1749,7 @@ class FetchResponse {
             return JSON.parse(this.bodyText);
         }
         catch (error) {
-            assert(false, "response body is not valid JSON", "UNSUPPORTED_OPERATION", {
+            assert$2(false, "response body is not valid JSON", "UNSUPPORTED_OPERATION", {
                 operation: "bodyJson", info: { response: this }
             });
         }
@@ -1845,7 +1848,7 @@ class FetchResponse {
         if (message === "") {
             message = `server response ${this.statusCode} ${this.statusMessage}`;
         }
-        assert(false, message, "SERVER_ERROR", {
+        assert$2(false, message, "SERVER_ERROR", {
             request: (this.request || "unknown request"), response: this, error
         });
     }
@@ -1892,7 +1895,7 @@ function checkValue(val, format, safeOp) {
     const width = BigInt(format.width);
     if (format.signed) {
         const limit = (BN_1$4 << (width - BN_1$4));
-        assert(safeOp == null || (val >= -limit && val < limit), "overflow", "NUMERIC_FAULT", {
+        assert$2(safeOp == null || (val >= -limit && val < limit), "overflow", "NUMERIC_FAULT", {
             operation: safeOp, fault: "overflow", value: val
         });
         if (val > BN_0$8) {
@@ -1904,7 +1907,7 @@ function checkValue(val, format, safeOp) {
     }
     else {
         const limit = (BN_1$4 << width);
-        assert(safeOp == null || (val >= 0 && val < limit), "overflow", "NUMERIC_FAULT", {
+        assert$2(safeOp == null || (val >= 0 && val < limit), "overflow", "NUMERIC_FAULT", {
             operation: safeOp, fault: "overflow", value: val
         });
         val = (((val % limit) + limit) % limit) & (limit - BN_1$4);
@@ -2144,13 +2147,13 @@ class FixedNumber {
     mulSignal(other) {
         this.#checkFormat(other);
         const value = this.#val * other.#val;
-        assert((value % this.#tens) === BN_0$8, "precision lost during signalling mul", "NUMERIC_FAULT", {
+        assert$2((value % this.#tens) === BN_0$8, "precision lost during signalling mul", "NUMERIC_FAULT", {
             operation: "mulSignal", fault: "underflow", value: this
         });
         return this.#checkValue(value / this.#tens, "mulSignal");
     }
     #div(o, safeOp) {
-        assert(o.#val !== BN_0$8, "division by zero", "NUMERIC_FAULT", {
+        assert$2(o.#val !== BN_0$8, "division by zero", "NUMERIC_FAULT", {
             operation: "div", fault: "divide-by-zero", value: this
         });
         this.#checkFormat(o);
@@ -2174,12 +2177,12 @@ class FixedNumber {
      *  (precision loss) occurs.
      */
     divSignal(other) {
-        assert(other.#val !== BN_0$8, "division by zero", "NUMERIC_FAULT", {
+        assert$2(other.#val !== BN_0$8, "division by zero", "NUMERIC_FAULT", {
             operation: "div", fault: "divide-by-zero", value: this
         });
         this.#checkFormat(other);
         const value = (this.#val * this.#tens);
-        assert((value % other.#val) === BN_0$8, "precision lost during signalling div", "NUMERIC_FAULT", {
+        assert$2((value % other.#val) === BN_0$8, "precision lost during signalling div", "NUMERIC_FAULT", {
             operation: "divSignal", fault: "underflow", value: this
         });
         return this.#checkValue(value / other.#val, "divSignal");
@@ -2322,7 +2325,7 @@ class FixedNumber {
         const delta = decimals - format.decimals;
         if (delta > 0) {
             const tens = getTens(delta);
-            assert((value % tens) === BN_0$8, "value loses precision for format", "NUMERIC_FAULT", {
+            assert$2((value % tens) === BN_0$8, "value loses precision for format", "NUMERIC_FAULT", {
                 operation: "fromValue", fault: "underflow", value: _value
             });
             value /= tens;
@@ -2349,7 +2352,7 @@ class FixedNumber {
             decimal += Zeros$1;
         }
         // Check precision is safe
-        assert(decimal.substring(format.decimals).match(/^0*$/), "too many decimals for format", "NUMERIC_FAULT", {
+        assert$2(decimal.substring(format.decimals).match(/^0*$/), "too many decimals for format", "NUMERIC_FAULT", {
             operation: "fromString", fault: "underflow", value: _value
         });
         // Remove extra padding
@@ -2398,22 +2401,22 @@ function unarrayifyInteger(data, offset, length) {
 function _decodeChildren(data, offset, childOffset, length) {
     const result = [];
     while (childOffset < offset + 1 + length) {
-        const decoded = _decode(data, childOffset);
+        const decoded = _decode$1(data, childOffset);
         result.push(decoded.result);
         childOffset += decoded.consumed;
-        assert(childOffset <= offset + 1 + length, "child data too short", "BUFFER_OVERRUN", {
+        assert$2(childOffset <= offset + 1 + length, "child data too short", "BUFFER_OVERRUN", {
             buffer: data, length, offset
         });
     }
     return { consumed: (1 + length), result: result };
 }
 // returns { consumed: number, result: Object }
-function _decode(data, offset) {
-    assert(data.length !== 0, "data too short", "BUFFER_OVERRUN", {
+function _decode$1(data, offset) {
+    assert$2(data.length !== 0, "data too short", "BUFFER_OVERRUN", {
         buffer: data, length: 0, offset: 1
     });
     const checkOffset = (offset) => {
-        assert(offset <= data.length, "data short segment too short", "BUFFER_OVERRUN", {
+        assert$2(offset <= data.length, "data short segment too short", "BUFFER_OVERRUN", {
             buffer: data, length: data.length, offset
         });
     };
@@ -2451,7 +2454,7 @@ function _decode(data, offset) {
  */
 function decodeRlp(_data) {
     const data = getBytes(_data, "data");
-    const decoded = _decode(data, 0);
+    const decoded = _decode$1(data, 0);
     assertArgument(decoded.consumed === data.length, "unexpected junk after rlp payload", "data", _data);
     return decoded.result;
 }
@@ -2740,7 +2743,7 @@ class Result extends Array {
      */
     toObject() {
         return this.#names.reduce((accum, name, index) => {
-            assert(name != null, "value at index ${ index } unnamed", "UNSUPPORTED_OPERATION", {
+            assert$2(name != null, "value at index ${ index } unnamed", "UNSUPPORTED_OPERATION", {
                 operation: "toObject()"
             });
             // Add values for names that don't conflict
@@ -2876,7 +2879,7 @@ function checkResultErrors(result) {
 }
 function getValue$1(value) {
     let bytes = toBeArray(value);
-    assert(bytes.length <= WordSize, "value out-of-bounds", "BUFFER_OVERRUN", { buffer: bytes, length: WordSize, offset: bytes.length });
+    assert$2(bytes.length <= WordSize, "value out-of-bounds", "BUFFER_OVERRUN", { buffer: bytes, length: WordSize, offset: bytes.length });
     if (bytes.length !== WordSize) {
         bytes = getBytesCopy(concat([Padding.slice(bytes.length % WordSize), bytes]));
     }
@@ -2982,7 +2985,7 @@ class Reader {
                 alignedLength = length;
             }
             else {
-                assert(false, "data out-of-bounds", "BUFFER_OVERRUN", {
+                assert$2(false, "data out-of-bounds", "BUFFER_OVERRUN", {
                     buffer: getBytesCopy(this.#data),
                     length: this.#data.length,
                     offset: this.#offset + alignedLength
@@ -3011,37 +3014,37 @@ class Reader {
     }
 }
 
-function number(n) {
+function number$1(n) {
     if (!Number.isSafeInteger(n) || n < 0)
         throw new Error(`Wrong positive integer: ${n}`);
 }
-function bytes(b, ...lengths) {
+function bytes$1(b, ...lengths) {
     if (!(b instanceof Uint8Array))
         throw new Error('Expected Uint8Array');
     if (lengths.length > 0 && !lengths.includes(b.length))
         throw new Error(`Expected Uint8Array of length ${lengths}, not of length=${b.length}`);
 }
-function hash(hash) {
+function hash$1(hash) {
     if (typeof hash !== 'function' || typeof hash.create !== 'function')
         throw new Error('Hash should be wrapped by utils.wrapConstructor');
-    number(hash.outputLen);
-    number(hash.blockLen);
+    number$1(hash.outputLen);
+    number$1(hash.blockLen);
 }
-function exists(instance, checkFinished = true) {
+function exists$1(instance, checkFinished = true) {
     if (instance.destroyed)
         throw new Error('Hash instance has been destroyed');
     if (checkFinished && instance.finished)
         throw new Error('Hash#digest() has already been called');
 }
-function output(out, instance) {
-    bytes(out);
+function output$1(out, instance) {
+    bytes$1(out);
     const min = instance.outputLen;
     if (out.length < min) {
         throw new Error(`digestInto() expects output buffer of length at least ${min}`);
     }
 }
 
-const crypto$1 = typeof globalThis === 'object' && 'crypto' in globalThis ? globalThis.crypto : undefined;
+const crypto$2 = typeof globalThis === 'object' && 'crypto' in globalThis ? globalThis.crypto : undefined;
 
 /*! noble-hashes - MIT License (c) 2022 Paul Miller (paulmillr.com) */
 // We use WebCrypto aka globalThis.crypto, which exists in browsers and node.js 16+.
@@ -3051,15 +3054,15 @@ const crypto$1 = typeof globalThis === 'object' && 'crypto' in globalThis ? glob
 // Makes the utils un-importable in browsers without a bundler.
 // Once node.js 18 is deprecated, we can just drop the import.
 const u8a$1 = (a) => a instanceof Uint8Array;
-const u32 = (arr) => new Uint32Array(arr.buffer, arr.byteOffset, Math.floor(arr.byteLength / 4));
+const u32$1 = (arr) => new Uint32Array(arr.buffer, arr.byteOffset, Math.floor(arr.byteLength / 4));
 // Cast array to view
-const createView = (arr) => new DataView(arr.buffer, arr.byteOffset, arr.byteLength);
+const createView$1 = (arr) => new DataView(arr.buffer, arr.byteOffset, arr.byteLength);
 // The rotate right (circular right shift) operation for uint32
-const rotr = (word, shift) => (word << (32 - shift)) | (word >>> shift);
+const rotr$1 = (word, shift) => (word << (32 - shift)) | (word >>> shift);
 // big-endian hardware is rare. Just in case someone still decides to run hashes:
 // early-throw an error because we don't support BE yet.
-const isLE = new Uint8Array(new Uint32Array([0x11223344]).buffer)[0] === 0x44;
-if (!isLE)
+const isLE$1 = new Uint8Array(new Uint32Array([0x11223344]).buffer)[0] === 0x44;
+if (!isLE$1)
     throw new Error('Non little-endian hardware is not supported');
 // There is no setImmediate in browser and setTimeout is slow.
 // call of async fn will return Promise, which will be fullfiled only on
@@ -3081,7 +3084,7 @@ async function asyncLoop(iters, tick, cb) {
 /**
  * @example utf8ToBytes('abc') // new Uint8Array([97, 98, 99])
  */
-function utf8ToBytes$1(str) {
+function utf8ToBytes$4(str) {
     if (typeof str !== 'string')
         throw new Error(`utf8ToBytes expected string, got ${typeof str}`);
     return new Uint8Array(new TextEncoder().encode(str)); // https://bugzil.la/1681809
@@ -3091,9 +3094,9 @@ function utf8ToBytes$1(str) {
  * Warning: when Uint8Array is passed, it would NOT get copied.
  * Keep in mind for future mutable operations.
  */
-function toBytes(data) {
+function toBytes$3(data) {
     if (typeof data === 'string')
-        data = utf8ToBytes$1(data);
+        data = utf8ToBytes$4(data);
     if (!u8a$1(data))
         throw new Error(`expected Uint8Array, got ${typeof data}`);
     return data;
@@ -3101,7 +3104,7 @@ function toBytes(data) {
 /**
  * Copies several Uint8Arrays into one.
  */
-function concatBytes$1(...arrays) {
+function concatBytes$5(...arrays) {
     const r = new Uint8Array(arrays.reduce((sum, a) => sum + a.length, 0));
     let pad = 0; // walk through each item, ensure they have proper type
     arrays.forEach((a) => {
@@ -3113,12 +3116,12 @@ function concatBytes$1(...arrays) {
     return r;
 }
 // For runtime check if class implements interface
-class Hash {
+let Hash$1 = class Hash {
     // Safe version that clones internal state
     clone() {
         return this._cloneInto();
     }
-}
+};
 const toStr = {}.toString;
 function checkOpts(defaults, opts) {
     if (opts !== undefined && toStr.call(opts) !== '[object Object]')
@@ -3126,8 +3129,8 @@ function checkOpts(defaults, opts) {
     const merged = Object.assign(defaults, opts);
     return merged;
 }
-function wrapConstructor(hashCons) {
-    const hashC = (msg) => hashCons().update(toBytes(msg)).digest();
+function wrapConstructor$1(hashCons) {
+    const hashC = (msg) => hashCons().update(toBytes$3(msg)).digest();
     const tmp = hashCons();
     hashC.outputLen = tmp.outputLen;
     hashC.blockLen = tmp.blockLen;
@@ -3137,22 +3140,22 @@ function wrapConstructor(hashCons) {
 /**
  * Secure PRNG. Uses `crypto.getRandomValues`, which defers to OS.
  */
-function randomBytes$2(bytesLength = 32) {
-    if (crypto$1 && typeof crypto$1.getRandomValues === 'function') {
-        return crypto$1.getRandomValues(new Uint8Array(bytesLength));
+function randomBytes$3(bytesLength = 32) {
+    if (crypto$2 && typeof crypto$2.getRandomValues === 'function') {
+        return crypto$2.getRandomValues(new Uint8Array(bytesLength));
     }
     throw new Error('crypto.getRandomValues must be defined');
 }
 
 // HMAC (RFC 2104)
-class HMAC extends Hash {
-    constructor(hash$1, _key) {
+let HMAC$1 = class HMAC extends Hash$1 {
+    constructor(hash, _key) {
         super();
         this.finished = false;
         this.destroyed = false;
-        hash(hash$1);
-        const key = toBytes(_key);
-        this.iHash = hash$1.create();
+        hash$1(hash);
+        const key = toBytes$3(_key);
+        this.iHash = hash.create();
         if (typeof this.iHash.update !== 'function')
             throw new Error('Expected instance of class which extends utils.Hash');
         this.blockLen = this.iHash.blockLen;
@@ -3160,12 +3163,12 @@ class HMAC extends Hash {
         const blockLen = this.blockLen;
         const pad = new Uint8Array(blockLen);
         // blockLen can be bigger than outputLen
-        pad.set(key.length > blockLen ? hash$1.create().update(key).digest() : key);
+        pad.set(key.length > blockLen ? hash.create().update(key).digest() : key);
         for (let i = 0; i < pad.length; i++)
             pad[i] ^= 0x36;
         this.iHash.update(pad);
         // By doing update (processing of first block) of outer hash here we can re-use it between multiple calls via clone
-        this.oHash = hash$1.create();
+        this.oHash = hash.create();
         // Undo internal XOR && apply outer XOR
         for (let i = 0; i < pad.length; i++)
             pad[i] ^= 0x36 ^ 0x5c;
@@ -3173,13 +3176,13 @@ class HMAC extends Hash {
         pad.fill(0);
     }
     update(buf) {
-        exists(this);
+        exists$1(this);
         this.iHash.update(buf);
         return this;
     }
     digestInto(out) {
-        exists(this);
-        bytes(out, this.outputLen);
+        exists$1(this);
+        bytes$1(out, this.outputLen);
         this.finished = true;
         this.iHash.digestInto(out);
         this.oHash.update(out);
@@ -3209,32 +3212,32 @@ class HMAC extends Hash {
         this.oHash.destroy();
         this.iHash.destroy();
     }
-}
+};
 /**
  * HMAC: RFC2104 message authentication code.
  * @param hash - function that would be used e.g. sha256
  * @param key - message key
  * @param message - message data
  */
-const hmac = (hash, key, message) => new HMAC(hash, key).update(message).digest();
-hmac.create = (hash, key) => new HMAC(hash, key);
+const hmac$1 = (hash, key, message) => new HMAC$1(hash, key).update(message).digest();
+hmac$1.create = (hash, key) => new HMAC$1(hash, key);
 
 // Common prologue and epilogue for sync/async functions
-function pbkdf2Init(hash$1, _password, _salt, _opts) {
-    hash(hash$1);
+function pbkdf2Init(hash, _password, _salt, _opts) {
+    hash$1(hash);
     const opts = checkOpts({ dkLen: 32, asyncTick: 10 }, _opts);
     const { c, dkLen, asyncTick } = opts;
-    number(c);
-    number(dkLen);
-    number(asyncTick);
+    number$1(c);
+    number$1(dkLen);
+    number$1(asyncTick);
     if (c < 1)
         throw new Error('PBKDF2: iterations (c) should be >= 1');
-    const password = toBytes(_password);
-    const salt = toBytes(_salt);
+    const password = toBytes$3(_password);
+    const salt = toBytes$3(_salt);
     // DK = PBKDF2(PRF, Password, Salt, c, dkLen);
     const DK = new Uint8Array(dkLen);
     // U1 = PRF(Password, Salt + INT_32_BE(i))
-    const PRF = hmac.create(hash$1, password);
+    const PRF = hmac$1.create(hash, password);
     const PRFSalt = PRF._cloneInto().update(salt);
     return { c, dkLen, asyncTick, DK, PRF, PRFSalt };
 }
@@ -3257,7 +3260,7 @@ function pbkdf2$1(hash, password, salt, opts) {
     const { c, dkLen, DK, PRF, PRFSalt } = pbkdf2Init(hash, password, salt, opts);
     let prfW; // Working copy
     const arr = new Uint8Array(4);
-    const view = createView(arr);
+    const view = createView$1(arr);
     const u = new Uint8Array(PRF.outputLen);
     // DK = T1 + T2 + ⋯ + Tdklen/hlen
     for (let ti = 1, pos = 0; pos < dkLen; ti++, pos += PRF.outputLen) {
@@ -3279,7 +3282,7 @@ function pbkdf2$1(hash, password, salt, opts) {
 }
 
 // Polyfill for Safari 14
-function setBigUint64(view, byteOffset, value, isLE) {
+function setBigUint64$1(view, byteOffset, value, isLE) {
     if (typeof view.setBigUint64 === 'function')
         return view.setBigUint64(byteOffset, value, isLE);
     const _32n = BigInt(32);
@@ -3292,7 +3295,7 @@ function setBigUint64(view, byteOffset, value, isLE) {
     view.setUint32(byteOffset + l, wl, isLE);
 }
 // Base SHA2 class (RFC 6234)
-class SHA2 extends Hash {
+class SHA2 extends Hash$1 {
     constructor(blockLen, outputLen, padOffset, isLE) {
         super();
         this.blockLen = blockLen;
@@ -3304,18 +3307,18 @@ class SHA2 extends Hash {
         this.pos = 0;
         this.destroyed = false;
         this.buffer = new Uint8Array(blockLen);
-        this.view = createView(this.buffer);
+        this.view = createView$1(this.buffer);
     }
     update(data) {
-        exists(this);
+        exists$1(this);
         const { view, buffer, blockLen } = this;
-        data = toBytes(data);
+        data = toBytes$3(data);
         const len = data.length;
         for (let pos = 0; pos < len;) {
             const take = Math.min(blockLen - this.pos, len - pos);
             // Fast path: we have at least one block in input, cast it to view and process
             if (take === blockLen) {
-                const dataView = createView(data);
+                const dataView = createView$1(data);
                 for (; blockLen <= len - pos; pos += blockLen)
                     this.process(dataView, pos);
                 continue;
@@ -3333,8 +3336,8 @@ class SHA2 extends Hash {
         return this;
     }
     digestInto(out) {
-        exists(this);
-        output(out, this);
+        exists$1(this);
+        output$1(out, this);
         this.finished = true;
         // Padding
         // We can avoid allocation of buffer for padding completely if it
@@ -3355,9 +3358,9 @@ class SHA2 extends Hash {
         // Note: sha512 requires length to be 128bit integer, but length in JS will overflow before that
         // You need to write around 2 exabytes (u64_max / 8 / (1024**6)) for this to happen.
         // So we just write lowest 64 bits of that value.
-        setBigUint64(view, blockLen - 8, BigInt(this.length * 8), isLE);
+        setBigUint64$1(view, blockLen - 8, BigInt(this.length * 8), isLE);
         this.process(view, 0);
-        const oview = createView(out);
+        const oview = createView$1(out);
         const len = this.outputLen;
         // NOTE: we do division by 4 later, which should be fused in single op with modulo by JIT
         if (len % 4)
@@ -3393,13 +3396,13 @@ class SHA2 extends Hash {
 // SHA2-256 need to try 2^128 hashes to execute birthday attack.
 // BTC network is doing 2^67 hashes/sec as per early 2023.
 // Choice: a ? b : c
-const Chi = (a, b, c) => (a & b) ^ (~a & c);
+const Chi$1 = (a, b, c) => (a & b) ^ (~a & c);
 // Majority function, true if any two inpust is true
-const Maj = (a, b, c) => (a & b) ^ (a & c) ^ (b & c);
+const Maj$1 = (a, b, c) => (a & b) ^ (a & c) ^ (b & c);
 // Round constants:
 // first 32 bits of the fractional parts of the cube roots of the first 64 primes 2..311)
 // prettier-ignore
-const SHA256_K = /* @__PURE__ */ new Uint32Array([
+const SHA256_K$1 = /* @__PURE__ */ new Uint32Array([
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
     0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
     0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
@@ -3416,8 +3419,8 @@ const IV = /* @__PURE__ */ new Uint32Array([
 ]);
 // Temporary buffer, not used to store anything between runs
 // Named this way because it matches specification.
-const SHA256_W = /* @__PURE__ */ new Uint32Array(64);
-class SHA256 extends SHA2 {
+const SHA256_W$1 = /* @__PURE__ */ new Uint32Array(64);
+let SHA256$1 = class SHA256 extends SHA2 {
     constructor() {
         super(64, 32, 8, false);
         // We cannot use array here since array allows indexing by variable
@@ -3449,21 +3452,21 @@ class SHA256 extends SHA2 {
     process(view, offset) {
         // Extend the first 16 words into the remaining 48 words w[16..63] of the message schedule array
         for (let i = 0; i < 16; i++, offset += 4)
-            SHA256_W[i] = view.getUint32(offset, false);
+            SHA256_W$1[i] = view.getUint32(offset, false);
         for (let i = 16; i < 64; i++) {
-            const W15 = SHA256_W[i - 15];
-            const W2 = SHA256_W[i - 2];
-            const s0 = rotr(W15, 7) ^ rotr(W15, 18) ^ (W15 >>> 3);
-            const s1 = rotr(W2, 17) ^ rotr(W2, 19) ^ (W2 >>> 10);
-            SHA256_W[i] = (s1 + SHA256_W[i - 7] + s0 + SHA256_W[i - 16]) | 0;
+            const W15 = SHA256_W$1[i - 15];
+            const W2 = SHA256_W$1[i - 2];
+            const s0 = rotr$1(W15, 7) ^ rotr$1(W15, 18) ^ (W15 >>> 3);
+            const s1 = rotr$1(W2, 17) ^ rotr$1(W2, 19) ^ (W2 >>> 10);
+            SHA256_W$1[i] = (s1 + SHA256_W$1[i - 7] + s0 + SHA256_W$1[i - 16]) | 0;
         }
         // Compression function main loop, 64 rounds
         let { A, B, C, D, E, F, G, H } = this;
         for (let i = 0; i < 64; i++) {
-            const sigma1 = rotr(E, 6) ^ rotr(E, 11) ^ rotr(E, 25);
-            const T1 = (H + sigma1 + Chi(E, F, G) + SHA256_K[i] + SHA256_W[i]) | 0;
-            const sigma0 = rotr(A, 2) ^ rotr(A, 13) ^ rotr(A, 22);
-            const T2 = (sigma0 + Maj(A, B, C)) | 0;
+            const sigma1 = rotr$1(E, 6) ^ rotr$1(E, 11) ^ rotr$1(E, 25);
+            const T1 = (H + sigma1 + Chi$1(E, F, G) + SHA256_K$1[i] + SHA256_W$1[i]) | 0;
+            const sigma0 = rotr$1(A, 2) ^ rotr$1(A, 13) ^ rotr$1(A, 22);
+            const T2 = (sigma0 + Maj$1(A, B, C)) | 0;
             H = G;
             G = F;
             F = E;
@@ -3485,37 +3488,37 @@ class SHA256 extends SHA2 {
         this.set(A, B, C, D, E, F, G, H);
     }
     roundClean() {
-        SHA256_W.fill(0);
+        SHA256_W$1.fill(0);
     }
     destroy() {
         this.set(0, 0, 0, 0, 0, 0, 0, 0);
         this.buffer.fill(0);
     }
-}
+};
 /**
  * SHA2-256 hash function
  * @param message - data that would be hashed
  */
-const sha256$1 = /* @__PURE__ */ wrapConstructor(() => new SHA256());
+const sha256$2 = /* @__PURE__ */ wrapConstructor$1(() => new SHA256$1());
 
-const U32_MASK64 = /* @__PURE__ */ BigInt(2 ** 32 - 1);
-const _32n = /* @__PURE__ */ BigInt(32);
+const U32_MASK64$1 = /* @__PURE__ */ BigInt(2 ** 32 - 1);
+const _32n$1 = /* @__PURE__ */ BigInt(32);
 // We are not using BigUint64Array, because they are extremely slow as per 2022
-function fromBig(n, le = false) {
+function fromBig$1(n, le = false) {
     if (le)
-        return { h: Number(n & U32_MASK64), l: Number((n >> _32n) & U32_MASK64) };
-    return { h: Number((n >> _32n) & U32_MASK64) | 0, l: Number(n & U32_MASK64) | 0 };
+        return { h: Number(n & U32_MASK64$1), l: Number((n >> _32n$1) & U32_MASK64$1) };
+    return { h: Number((n >> _32n$1) & U32_MASK64$1) | 0, l: Number(n & U32_MASK64$1) | 0 };
 }
-function split$1(lst, le = false) {
+function split$2(lst, le = false) {
     let Ah = new Uint32Array(lst.length);
     let Al = new Uint32Array(lst.length);
     for (let i = 0; i < lst.length; i++) {
-        const { h, l } = fromBig(lst[i], le);
+        const { h, l } = fromBig$1(lst[i], le);
         [Ah[i], Al[i]] = [h, l];
     }
     return [Ah, Al];
 }
-const toBig = (h, l) => (BigInt(h >>> 0) << _32n) | BigInt(l >>> 0);
+const toBig = (h, l) => (BigInt(h >>> 0) << _32n$1) | BigInt(l >>> 0);
 // for Shift in [0, 32)
 const shrSH = (h, _l, s) => h >>> s;
 const shrSL = (h, l, s) => (h << (32 - s)) | (l >>> s);
@@ -3529,11 +3532,11 @@ const rotrBL = (h, l, s) => (h >>> (s - 32)) | (l << (64 - s));
 const rotr32H = (_h, l) => l;
 const rotr32L = (h, _l) => h;
 // Left rotate for Shift in [1, 32)
-const rotlSH = (h, l, s) => (h << s) | (l >>> (32 - s));
-const rotlSL = (h, l, s) => (l << s) | (h >>> (32 - s));
+const rotlSH$1 = (h, l, s) => (h << s) | (l >>> (32 - s));
+const rotlSL$1 = (h, l, s) => (l << s) | (h >>> (32 - s));
 // Left rotate for Shift in (32, 64), NOTE: 32 is special case.
-const rotlBH = (h, l, s) => (l << (s - 32)) | (h >>> (64 - s));
-const rotlBL = (h, l, s) => (h << (s - 32)) | (l >>> (64 - s));
+const rotlBH$1 = (h, l, s) => (l << (s - 32)) | (h >>> (64 - s));
+const rotlBL$1 = (h, l, s) => (h << (s - 32)) | (l >>> (64 - s));
 // JS uses 32-bit signed integers for bitwise operations which means we cannot
 // simple take carry out of low bit sum by shift, we need to use division.
 function add(Ah, Al, Bh, Bl) {
@@ -3549,11 +3552,11 @@ const add5L = (Al, Bl, Cl, Dl, El) => (Al >>> 0) + (Bl >>> 0) + (Cl >>> 0) + (Dl
 const add5H = (low, Ah, Bh, Ch, Dh, Eh) => (Ah + Bh + Ch + Dh + Eh + ((low / 2 ** 32) | 0)) | 0;
 // prettier-ignore
 const u64 = {
-    fromBig, split: split$1, toBig,
+    fromBig: fromBig$1, split: split$2, toBig,
     shrSH, shrSL,
     rotrSH, rotrSL, rotrBH, rotrBL,
     rotr32H, rotr32L,
-    rotlSH, rotlSL, rotlBH, rotlBL,
+    rotlSH: rotlSH$1, rotlSL: rotlSL$1, rotlBH: rotlBH$1, rotlBL: rotlBL$1,
     add, add3L, add3H, add4L, add4H, add5H, add5L,
 };
 var u64$1 = u64;
@@ -3712,7 +3715,7 @@ class SHA512 extends SHA2 {
         this.set(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     }
 }
-const sha512$1 = /* @__PURE__ */ wrapConstructor(() => new SHA512());
+const sha512$1 = /* @__PURE__ */ wrapConstructor$1(() => new SHA512());
 
 /* Browser Crypto Shims */
 function getGlobal$1() {
@@ -3728,31 +3731,31 @@ function getGlobal$1() {
     throw new Error('unable to locate global object');
 }
 const anyGlobal = getGlobal$1();
-const crypto = anyGlobal.crypto || anyGlobal.msCrypto;
+const crypto$1 = anyGlobal.crypto || anyGlobal.msCrypto;
 function createHash(algo) {
     switch (algo) {
-        case "sha256": return sha256$1.create();
+        case "sha256": return sha256$2.create();
         case "sha512": return sha512$1.create();
     }
     assertArgument(false, "invalid hashing algorithm name", "algorithm", algo);
 }
 function createHmac(_algo, key) {
-    const algo = ({ sha256: sha256$1, sha512: sha512$1 }[_algo]);
+    const algo = ({ sha256: sha256$2, sha512: sha512$1 }[_algo]);
     assertArgument(algo != null, "invalid hmac algorithm", "algorithm", _algo);
-    return hmac.create(algo, key);
+    return hmac$1.create(algo, key);
 }
 function pbkdf2Sync(password, salt, iterations, keylen, _algo) {
-    const algo = ({ sha256: sha256$1, sha512: sha512$1 }[_algo]);
+    const algo = ({ sha256: sha256$2, sha512: sha512$1 }[_algo]);
     assertArgument(algo != null, "invalid pbkdf2 algorithm", "algorithm", _algo);
     return pbkdf2$1(algo, password, salt, { c: iterations, dkLen: keylen });
 }
-function randomBytes$1(length) {
-    assert(crypto != null, "platform does not support secure random numbers", "UNSUPPORTED_OPERATION", {
+function randomBytes$2(length) {
+    assert$2(crypto$1 != null, "platform does not support secure random numbers", "UNSUPPORTED_OPERATION", {
         operation: "randomBytes"
     });
     assertArgument(Number.isInteger(length) && length > 0 && length <= 1024, "invalid length", "length", length);
     const result = new Uint8Array(length);
-    crypto.getRandomValues(result);
+    crypto$1.getRandomValues(result);
     return result;
 }
 
@@ -3804,34 +3807,34 @@ Object.freeze(computeHmac);
 // SHA3 (keccak) is based on a new design: basically, the internal state is bigger than output size.
 // It's called a sponge function.
 // Various per round constants calculations
-const [SHA3_PI, SHA3_ROTL, _SHA3_IOTA] = [[], [], []];
-const _0n$4 = /* @__PURE__ */ BigInt(0);
-const _1n$5 = /* @__PURE__ */ BigInt(1);
-const _2n$3 = /* @__PURE__ */ BigInt(2);
-const _7n = /* @__PURE__ */ BigInt(7);
-const _256n = /* @__PURE__ */ BigInt(256);
-const _0x71n = /* @__PURE__ */ BigInt(0x71);
-for (let round = 0, R = _1n$5, x = 1, y = 0; round < 24; round++) {
+const [SHA3_PI$1, SHA3_ROTL$1, _SHA3_IOTA$1] = [[], [], []];
+const _0n$9 = /* @__PURE__ */ BigInt(0);
+const _1n$b = /* @__PURE__ */ BigInt(1);
+const _2n$7 = /* @__PURE__ */ BigInt(2);
+const _7n$1 = /* @__PURE__ */ BigInt(7);
+const _256n$1 = /* @__PURE__ */ BigInt(256);
+const _0x71n$1 = /* @__PURE__ */ BigInt(0x71);
+for (let round = 0, R = _1n$b, x = 1, y = 0; round < 24; round++) {
     // Pi
     [x, y] = [y, (2 * x + 3 * y) % 5];
-    SHA3_PI.push(2 * (5 * y + x));
+    SHA3_PI$1.push(2 * (5 * y + x));
     // Rotational
-    SHA3_ROTL.push((((round + 1) * (round + 2)) / 2) % 64);
+    SHA3_ROTL$1.push((((round + 1) * (round + 2)) / 2) % 64);
     // Iota
-    let t = _0n$4;
+    let t = _0n$9;
     for (let j = 0; j < 7; j++) {
-        R = ((R << _1n$5) ^ ((R >> _7n) * _0x71n)) % _256n;
-        if (R & _2n$3)
-            t ^= _1n$5 << ((_1n$5 << /* @__PURE__ */ BigInt(j)) - _1n$5);
+        R = ((R << _1n$b) ^ ((R >> _7n$1) * _0x71n$1)) % _256n$1;
+        if (R & _2n$7)
+            t ^= _1n$b << ((_1n$b << /* @__PURE__ */ BigInt(j)) - _1n$b);
     }
-    _SHA3_IOTA.push(t);
+    _SHA3_IOTA$1.push(t);
 }
-const [SHA3_IOTA_H, SHA3_IOTA_L] = /* @__PURE__ */ split$1(_SHA3_IOTA, true);
+const [SHA3_IOTA_H$1, SHA3_IOTA_L$1] = /* @__PURE__ */ split$2(_SHA3_IOTA$1, true);
 // Left rotation (without 0, 32, 64)
-const rotlH = (h, l, s) => (s > 32 ? rotlBH(h, l, s) : rotlSH(h, l, s));
-const rotlL = (h, l, s) => (s > 32 ? rotlBL(h, l, s) : rotlSL(h, l, s));
+const rotlH$1 = (h, l, s) => (s > 32 ? rotlBH$1(h, l, s) : rotlSH$1(h, l, s));
+const rotlL$1 = (h, l, s) => (s > 32 ? rotlBL$1(h, l, s) : rotlSL$1(h, l, s));
 // Same as keccakf1600, but allows to skip some rounds
-function keccakP(s, rounds = 24) {
+function keccakP$1(s, rounds = 24) {
     const B = new Uint32Array(5 * 2);
     // NOTE: all indices are x2 since we store state as u32 instead of u64 (bigints to slow in js)
     for (let round = 24 - rounds; round < 24; round++) {
@@ -3843,8 +3846,8 @@ function keccakP(s, rounds = 24) {
             const idx0 = (x + 2) % 10;
             const B0 = B[idx0];
             const B1 = B[idx0 + 1];
-            const Th = rotlH(B0, B1, 1) ^ B[idx1];
-            const Tl = rotlL(B0, B1, 1) ^ B[idx1 + 1];
+            const Th = rotlH$1(B0, B1, 1) ^ B[idx1];
+            const Tl = rotlL$1(B0, B1, 1) ^ B[idx1 + 1];
             for (let y = 0; y < 50; y += 10) {
                 s[x + y] ^= Th;
                 s[x + y + 1] ^= Tl;
@@ -3854,10 +3857,10 @@ function keccakP(s, rounds = 24) {
         let curH = s[2];
         let curL = s[3];
         for (let t = 0; t < 24; t++) {
-            const shift = SHA3_ROTL[t];
-            const Th = rotlH(curH, curL, shift);
-            const Tl = rotlL(curH, curL, shift);
-            const PI = SHA3_PI[t];
+            const shift = SHA3_ROTL$1[t];
+            const Th = rotlH$1(curH, curL, shift);
+            const Tl = rotlL$1(curH, curL, shift);
+            const PI = SHA3_PI$1[t];
             curH = s[PI];
             curL = s[PI + 1];
             s[PI] = Th;
@@ -3871,12 +3874,12 @@ function keccakP(s, rounds = 24) {
                 s[y + x] ^= ~B[(x + 2) % 10] & B[(x + 4) % 10];
         }
         // Iota (ι)
-        s[0] ^= SHA3_IOTA_H[round];
-        s[1] ^= SHA3_IOTA_L[round];
+        s[0] ^= SHA3_IOTA_H$1[round];
+        s[1] ^= SHA3_IOTA_L$1[round];
     }
     B.fill(0);
 }
-class Keccak extends Hash {
+let Keccak$1 = class Keccak extends Hash$1 {
     // NOTE: we accept arguments in bytes instead of bits here.
     constructor(blockLen, suffix, outputLen, enableXOF = false, rounds = 24) {
         super();
@@ -3890,22 +3893,22 @@ class Keccak extends Hash {
         this.finished = false;
         this.destroyed = false;
         // Can be passed from user as dkLen
-        number(outputLen);
+        number$1(outputLen);
         // 1600 = 5x5 matrix of 64bit.  1600 bits === 200 bytes
         if (0 >= this.blockLen || this.blockLen >= 200)
             throw new Error('Sha3 supports only keccak-f1600 function');
         this.state = new Uint8Array(200);
-        this.state32 = u32(this.state);
+        this.state32 = u32$1(this.state);
     }
     keccak() {
-        keccakP(this.state32, this.rounds);
+        keccakP$1(this.state32, this.rounds);
         this.posOut = 0;
         this.pos = 0;
     }
     update(data) {
-        exists(this);
+        exists$1(this);
         const { blockLen, state } = this;
-        data = toBytes(data);
+        data = toBytes$3(data);
         const len = data.length;
         for (let pos = 0; pos < len;) {
             const take = Math.min(blockLen - this.pos, len - pos);
@@ -3929,8 +3932,8 @@ class Keccak extends Hash {
         this.keccak();
     }
     writeInto(out) {
-        exists(this, false);
-        bytes(out);
+        exists$1(this, false);
+        bytes$1(out);
         this.finish();
         const bufferOut = this.state;
         const { blockLen } = this;
@@ -3951,11 +3954,11 @@ class Keccak extends Hash {
         return this.writeInto(out);
     }
     xof(bytes) {
-        number(bytes);
+        number$1(bytes);
         return this.xofInto(new Uint8Array(bytes));
     }
     digestInto(out) {
-        output(out, this);
+        output$1(out, this);
         if (this.finished)
             throw new Error('digest() was already called');
         this.writeInto(out);
@@ -3984,13 +3987,13 @@ class Keccak extends Hash {
         to.destroyed = this.destroyed;
         return to;
     }
-}
-const gen = (suffix, blockLen, outputLen) => wrapConstructor(() => new Keccak(blockLen, suffix, outputLen));
+};
+const gen$1 = (suffix, blockLen, outputLen) => wrapConstructor$1(() => new Keccak$1(blockLen, suffix, outputLen));
 /**
  * keccak-256 hash function. Different from SHA3-256.
  * @param message - that would be hashed
  */
-const keccak_256 = /* @__PURE__ */ gen(0x01, 136, 256 / 8);
+const keccak_256$1 = /* @__PURE__ */ gen$1(0x01, 136, 256 / 8);
 
 /**
  *  Cryptographic hashing functions
@@ -3999,7 +4002,7 @@ const keccak_256 = /* @__PURE__ */ gen(0x01, 136, 256 / 8);
  */
 let locked$3 = false;
 const _keccak256 = function (data) {
-    return keccak_256(data);
+    return keccak_256$1(data);
 };
 let __keccak256 = _keccak256;
 /**
@@ -4024,19 +4027,19 @@ let __keccak256 = _keccak256;
  *    keccak256("Hello World")
  *    //_error:
  */
-function keccak256(_data) {
+function keccak256$1(_data) {
     const data = getBytes(_data, "data");
     return hexlify(__keccak256(data));
 }
-keccak256._ = _keccak256;
-keccak256.lock = function () { locked$3 = true; };
-keccak256.register = function (func) {
+keccak256$1._ = _keccak256;
+keccak256$1.lock = function () { locked$3 = true; };
+keccak256$1.register = function (func) {
     if (locked$3) {
         throw new TypeError("keccak256 is locked");
     }
     __keccak256 = func;
 };
-Object.freeze(keccak256);
+Object.freeze(keccak256$1);
 
 // https://homes.esat.kuleuven.be/~bosselae/ripemd160.html
 // https://homes.esat.kuleuven.be/~bosselae/ripemd160/pdf/AB-9601/AB-9601.pdf
@@ -4138,7 +4141,7 @@ class RIPEMD160 extends SHA2 {
  * RIPEMD-160 - a hash function from 1990s.
  * @param message - msg that would be hashed
  */
-const ripemd160$1 = /* @__PURE__ */ wrapConstructor(() => new RIPEMD160());
+const ripemd160$1 = /* @__PURE__ */ wrapConstructor$1(() => new RIPEMD160());
 
 let locked$2 = false;
 const _ripemd160 = function (data) {
@@ -4233,7 +4236,7 @@ Object.freeze(pbkdf2);
  */
 let locked = false;
 const _randomBytes = function (length) {
-    return new Uint8Array(randomBytes$1(length));
+    return new Uint8Array(randomBytes$2(length));
 };
 let __randomBytes = _randomBytes;
 /**
@@ -4243,18 +4246,18 @@ let __randomBytes = _randomBytes;
  *    randomBytes(8)
  *    //_result:
  */
-function randomBytes(length) {
+function randomBytes$1(length) {
     return __randomBytes(length);
 }
-randomBytes._ = _randomBytes;
-randomBytes.lock = function () { locked = true; };
-randomBytes.register = function (func) {
+randomBytes$1._ = _randomBytes;
+randomBytes$1.lock = function () { locked = true; };
+randomBytes$1.register = function (func) {
     if (locked) {
         throw new Error("randomBytes is locked");
     }
     __randomBytes = func;
 };
-Object.freeze(randomBytes);
+Object.freeze(randomBytes$1);
 
 // RFC 7914 Scrypt KDF
 // Left rotate for uint32
@@ -4351,12 +4354,12 @@ function scryptInit(password, salt, _opts) {
         maxmem: 1024 ** 3 + 1024,
     }, _opts);
     const { N, r, p, dkLen, asyncTick, maxmem, onProgress } = opts;
-    number(N);
-    number(r);
-    number(p);
-    number(dkLen);
-    number(asyncTick);
-    number(maxmem);
+    number$1(N);
+    number$1(r);
+    number$1(p);
+    number$1(dkLen);
+    number$1(asyncTick);
+    number$1(maxmem);
     if (onProgress !== undefined && typeof onProgress !== 'function')
         throw new Error('progressCb should be function');
     const blockSize = 128 * r;
@@ -4378,11 +4381,11 @@ function scryptInit(password, salt, _opts) {
     }
     // [B0...Bp−1] ← PBKDF2HMAC-SHA256(Passphrase, Salt, 1, blockSize*ParallelizationFactor)
     // Since it has only one iteration there is no reason to use async variant
-    const B = pbkdf2$1(sha256$1, password, salt, { c: 1, dkLen: blockSize * p });
-    const B32 = u32(B);
+    const B = pbkdf2$1(sha256$2, password, salt, { c: 1, dkLen: blockSize * p });
+    const B32 = u32$1(B);
     // Re-used between parallel iterations. Array(iterations) of B
-    const V = u32(new Uint8Array(blockSize * N));
-    const tmp = u32(new Uint8Array(blockSize));
+    const V = u32$1(new Uint8Array(blockSize * N));
+    const tmp = u32$1(new Uint8Array(blockSize));
     let blockMixCb = () => { };
     if (onProgress) {
         const totalBlockMix = 2 * N * p;
@@ -4399,7 +4402,7 @@ function scryptInit(password, salt, _opts) {
     return { N, r, p, dkLen, blockSize32, V, B32, B, tmp, blockMixCb, asyncTick };
 }
 function scryptOutput(password, dkLen, B, V, tmp) {
-    const res = pbkdf2$1(sha256$1, password, B, { c: 1, dkLen });
+    const res = pbkdf2$1(sha256$2, password, B, { c: 1, dkLen });
     B.fill(0);
     V.fill(0);
     tmp.fill(0);
@@ -4593,19 +4596,19 @@ let locked256 = false, locked512 = false;
  *    //_result:
  *
  */
-function sha256(_data) {
+function sha256$1(_data) {
     const data = getBytes(_data, "data");
     return hexlify(__sha256(data));
 }
-sha256._ = _sha256;
-sha256.lock = function () { locked256 = true; };
-sha256.register = function (func) {
+sha256$1._ = _sha256;
+sha256$1.lock = function () { locked256 = true; };
+sha256$1.register = function (func) {
     if (locked256) {
         throw new Error("sha256 is locked");
     }
     __sha256 = func;
 };
-Object.freeze(sha256);
+Object.freeze(sha256$1);
 /**
  *  Compute the cryptographic SHA2-512 hash of %%data%%.
  *
@@ -4634,36 +4637,36 @@ sha512.register = function (func) {
     }
     __sha512 = func;
 };
-Object.freeze(sha256);
+Object.freeze(sha256$1);
 
 /*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
 // 100 lines of code in the file are duplicated from noble-hashes (utils).
 // This is OK: `abstract` directory does not use noble-hashes.
 // User may opt-in into using different hashing library. This way, noble-hashes
 // won't be included into their bundle.
-const _0n$3 = BigInt(0);
-const _1n$4 = BigInt(1);
-const _2n$2 = BigInt(2);
+const _0n$8 = BigInt(0);
+const _1n$a = BigInt(1);
+const _2n$6 = BigInt(2);
 const u8a = (a) => a instanceof Uint8Array;
-const hexes = /* @__PURE__ */ Array.from({ length: 256 }, (_, i) => i.toString(16).padStart(2, '0'));
+const hexes$2 = /* @__PURE__ */ Array.from({ length: 256 }, (_, i) => i.toString(16).padStart(2, '0'));
 /**
  * @example bytesToHex(Uint8Array.from([0xca, 0xfe, 0x01, 0x23])) // 'cafe0123'
  */
-function bytesToHex(bytes) {
+function bytesToHex$4(bytes) {
     if (!u8a(bytes))
         throw new Error('Uint8Array expected');
     // pre-caching improves the speed 6x
     let hex = '';
     for (let i = 0; i < bytes.length; i++) {
-        hex += hexes[bytes[i]];
+        hex += hexes$2[bytes[i]];
     }
     return hex;
 }
-function numberToHexUnpadded(num) {
+function numberToHexUnpadded$1(num) {
     const hex = num.toString(16);
     return hex.length & 1 ? `0${hex}` : hex;
 }
-function hexToNumber(hex) {
+function hexToNumber$1(hex) {
     if (typeof hex !== 'string')
         throw new Error('hex string expected, got ' + typeof hex);
     // Big Endian
@@ -4672,7 +4675,7 @@ function hexToNumber(hex) {
 /**
  * @example hexToBytes('cafe0123') // Uint8Array.from([0xca, 0xfe, 0x01, 0x23])
  */
-function hexToBytes(hex) {
+function hexToBytes$3(hex) {
     if (typeof hex !== 'string')
         throw new Error('hex string expected, got ' + typeof hex);
     const len = hex.length;
@@ -4690,23 +4693,23 @@ function hexToBytes(hex) {
     return array;
 }
 // BE: Big Endian, LE: Little Endian
-function bytesToNumberBE(bytes) {
-    return hexToNumber(bytesToHex(bytes));
+function bytesToNumberBE$1(bytes) {
+    return hexToNumber$1(bytesToHex$4(bytes));
 }
-function bytesToNumberLE(bytes) {
+function bytesToNumberLE$1(bytes) {
     if (!u8a(bytes))
         throw new Error('Uint8Array expected');
-    return hexToNumber(bytesToHex(Uint8Array.from(bytes).reverse()));
+    return hexToNumber$1(bytesToHex$4(Uint8Array.from(bytes).reverse()));
 }
-function numberToBytesBE(n, len) {
-    return hexToBytes(n.toString(16).padStart(len * 2, '0'));
+function numberToBytesBE$1(n, len) {
+    return hexToBytes$3(n.toString(16).padStart(len * 2, '0'));
 }
-function numberToBytesLE(n, len) {
-    return numberToBytesBE(n, len).reverse();
+function numberToBytesLE$1(n, len) {
+    return numberToBytesBE$1(n, len).reverse();
 }
 // Unpadded, rarely used
-function numberToVarBytesBE(n) {
-    return hexToBytes(numberToHexUnpadded(n));
+function numberToVarBytesBE$1(n) {
+    return hexToBytes$3(numberToHexUnpadded$1(n));
 }
 /**
  * Takes hex string or Uint8Array, converts to Uint8Array.
@@ -4717,11 +4720,11 @@ function numberToVarBytesBE(n) {
  * @param expectedLength optional, will compare to result array's length
  * @returns
  */
-function ensureBytes(title, hex, expectedLength) {
+function ensureBytes$1(title, hex, expectedLength) {
     let res;
     if (typeof hex === 'string') {
         try {
-            res = hexToBytes(hex);
+            res = hexToBytes$3(hex);
         }
         catch (e) {
             throw new Error(`${title} must be valid hex string, got "${hex}". Cause: ${e}`);
@@ -4743,7 +4746,7 @@ function ensureBytes(title, hex, expectedLength) {
 /**
  * Copies several Uint8Arrays into one.
  */
-function concatBytes(...arrays) {
+function concatBytes$4(...arrays) {
     const r = new Uint8Array(arrays.reduce((sum, a) => sum + a.length, 0));
     let pad = 0; // walk through each item, ensure they have proper type
     arrays.forEach((a) => {
@@ -4754,7 +4757,7 @@ function concatBytes(...arrays) {
     });
     return r;
 }
-function equalBytes(b1, b2) {
+function equalBytes$1(b1, b2) {
     // We don't care about timing attacks here
     if (b1.length !== b2.length)
         return false;
@@ -4766,7 +4769,7 @@ function equalBytes(b1, b2) {
 /**
  * @example utf8ToBytes('abc') // new Uint8Array([97, 98, 99])
  */
-function utf8ToBytes(str) {
+function utf8ToBytes$3(str) {
     if (typeof str !== 'string')
         throw new Error(`utf8ToBytes expected string, got ${typeof str}`);
     return new Uint8Array(new TextEncoder().encode(str)); // https://bugzil.la/1681809
@@ -4776,9 +4779,9 @@ function utf8ToBytes(str) {
  * Calculates amount of bits in a bigint.
  * Same as `n.toString(2).length`
  */
-function bitLen(n) {
+function bitLen$1(n) {
     let len;
-    for (len = 0; n > _0n$3; n >>= _1n$4, len += 1)
+    for (len = 0; n > _0n$8; n >>= _1n$a, len += 1)
         ;
     return len;
 }
@@ -4787,23 +4790,23 @@ function bitLen(n) {
  * NOTE: first bit position is 0 (same as arrays)
  * Same as `!!+Array.from(n.toString(2)).reverse()[pos]`
  */
-function bitGet(n, pos) {
-    return (n >> BigInt(pos)) & _1n$4;
+function bitGet$1(n, pos) {
+    return (n >> BigInt(pos)) & _1n$a;
 }
 /**
  * Sets single bit at position.
  */
-const bitSet = (n, pos, value) => {
-    return n | ((value ? _1n$4 : _0n$3) << BigInt(pos));
+const bitSet$1 = (n, pos, value) => {
+    return n | ((value ? _1n$a : _0n$8) << BigInt(pos));
 };
 /**
  * Calculate mask for N bits. Not using ** operator with bigints because of old engines.
  * Same as BigInt(`0b${Array(i).fill('1').join('')}`)
  */
-const bitMask = (n) => (_2n$2 << BigInt(n - 1)) - _1n$4;
+const bitMask$1 = (n) => (_2n$6 << BigInt(n - 1)) - _1n$a;
 // DRBG
-const u8n = (data) => new Uint8Array(data); // creates Uint8Array
-const u8fr = (arr) => Uint8Array.from(arr); // another shortcut
+const u8n$1 = (data) => new Uint8Array(data); // creates Uint8Array
+const u8fr$1 = (arr) => Uint8Array.from(arr); // another shortcut
 /**
  * Minimal HMAC-DRBG from NIST 800-90 for RFC6979 sigs.
  * @returns function that will call DRBG until 2nd arg returns something meaningful
@@ -4811,7 +4814,7 @@ const u8fr = (arr) => Uint8Array.from(arr); // another shortcut
  *   const drbg = createHmacDRBG<Key>(32, 32, hmac);
  *   drbg(seed, bytesToKey); // bytesToKey must return Key or undefined
  */
-function createHmacDrbg(hashLen, qByteLen, hmacFn) {
+function createHmacDrbg$1(hashLen, qByteLen, hmacFn) {
     if (typeof hashLen !== 'number' || hashLen < 2)
         throw new Error('hashLen must be a number');
     if (typeof qByteLen !== 'number' || qByteLen < 2)
@@ -4819,8 +4822,8 @@ function createHmacDrbg(hashLen, qByteLen, hmacFn) {
     if (typeof hmacFn !== 'function')
         throw new Error('hmacFn must be a function');
     // Step B, Step C: set hashLen to 8*ceil(hlen/8)
-    let v = u8n(hashLen); // Minimal non-full-spec HMAC-DRBG from NIST 800-90 for RFC6979 sigs.
-    let k = u8n(hashLen); // Steps B and C of RFC6979 3.2: set hashLen, in our case always same
+    let v = u8n$1(hashLen); // Minimal non-full-spec HMAC-DRBG from NIST 800-90 for RFC6979 sigs.
+    let k = u8n$1(hashLen); // Steps B and C of RFC6979 3.2: set hashLen, in our case always same
     let i = 0; // Iterations counter, will throw when over 1000
     const reset = () => {
         v.fill(1);
@@ -4828,13 +4831,13 @@ function createHmacDrbg(hashLen, qByteLen, hmacFn) {
         i = 0;
     };
     const h = (...b) => hmacFn(k, v, ...b); // hmac(k)(v, ...values)
-    const reseed = (seed = u8n()) => {
+    const reseed = (seed = u8n$1()) => {
         // HMAC-DRBG reseed() function. Steps D-G
-        k = h(u8fr([0x00]), seed); // k = hmac(k || v || 0x00 || seed)
+        k = h(u8fr$1([0x00]), seed); // k = hmac(k || v || 0x00 || seed)
         v = h(); // v = hmac(k || v)
         if (seed.length === 0)
             return;
-        k = h(u8fr([0x01]), seed); // k = hmac(k || v || 0x01 || seed)
+        k = h(u8fr$1([0x01]), seed); // k = hmac(k || v || 0x01 || seed)
         v = h(); // v = hmac(k || v)
     };
     const gen = () => {
@@ -4849,7 +4852,7 @@ function createHmacDrbg(hashLen, qByteLen, hmacFn) {
             out.push(sl);
             len += v.length;
         }
-        return concatBytes(...out);
+        return concatBytes$4(...out);
     };
     const genUntil = (seed, pred) => {
         reset();
@@ -4863,7 +4866,7 @@ function createHmacDrbg(hashLen, qByteLen, hmacFn) {
     return genUntil;
 }
 // Validating curves and fields
-const validatorFns = {
+const validatorFns$1 = {
     bigint: (val) => typeof val === 'bigint',
     function: (val) => typeof val === 'function',
     boolean: (val) => typeof val === 'boolean',
@@ -4875,9 +4878,9 @@ const validatorFns = {
     hash: (val) => typeof val === 'function' && Number.isSafeInteger(val.outputLen),
 };
 // type Record<K extends string | number | symbol, T> = { [P in K]: T; }
-function validateObject(object, validators, optValidators = {}) {
+function validateObject$1(object, validators, optValidators = {}) {
     const checkField = (fieldName, type, isOptional) => {
-        const checkVal = validatorFns[type];
+        const checkVal = validatorFns$1[type];
         if (typeof checkVal !== 'function')
             throw new Error(`Invalid validator "${type}", expected function`);
         const val = object[fieldName];
@@ -4902,41 +4905,41 @@ function validateObject(object, validators, optValidators = {}) {
 // const z3 = validateObject(o, { test: 'boolean', z: 'bug' });
 // const z4 = validateObject(o, { a: 'boolean', z: 'bug' });
 
-var ut = /*#__PURE__*/Object.freeze({
+var ut$1 = /*#__PURE__*/Object.freeze({
     __proto__: null,
-    bitGet: bitGet,
-    bitLen: bitLen,
-    bitMask: bitMask,
-    bitSet: bitSet,
-    bytesToHex: bytesToHex,
-    bytesToNumberBE: bytesToNumberBE,
-    bytesToNumberLE: bytesToNumberLE,
-    concatBytes: concatBytes,
-    createHmacDrbg: createHmacDrbg,
-    ensureBytes: ensureBytes,
-    equalBytes: equalBytes,
-    hexToBytes: hexToBytes,
-    hexToNumber: hexToNumber,
-    numberToBytesBE: numberToBytesBE,
-    numberToBytesLE: numberToBytesLE,
-    numberToHexUnpadded: numberToHexUnpadded,
-    numberToVarBytesBE: numberToVarBytesBE,
-    utf8ToBytes: utf8ToBytes,
-    validateObject: validateObject
+    bitGet: bitGet$1,
+    bitLen: bitLen$1,
+    bitMask: bitMask$1,
+    bitSet: bitSet$1,
+    bytesToHex: bytesToHex$4,
+    bytesToNumberBE: bytesToNumberBE$1,
+    bytesToNumberLE: bytesToNumberLE$1,
+    concatBytes: concatBytes$4,
+    createHmacDrbg: createHmacDrbg$1,
+    ensureBytes: ensureBytes$1,
+    equalBytes: equalBytes$1,
+    hexToBytes: hexToBytes$3,
+    hexToNumber: hexToNumber$1,
+    numberToBytesBE: numberToBytesBE$1,
+    numberToBytesLE: numberToBytesLE$1,
+    numberToHexUnpadded: numberToHexUnpadded$1,
+    numberToVarBytesBE: numberToVarBytesBE$1,
+    utf8ToBytes: utf8ToBytes$3,
+    validateObject: validateObject$1
 });
 
 /*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
 // Utilities for modular arithmetics and finite fields
 // prettier-ignore
-const _0n$2 = BigInt(0), _1n$3 = BigInt(1), _2n$1 = BigInt(2), _3n$1 = BigInt(3);
+const _0n$7 = BigInt(0), _1n$9 = BigInt(1), _2n$5 = BigInt(2), _3n$3 = BigInt(3);
 // prettier-ignore
-const _4n = BigInt(4), _5n = BigInt(5), _8n = BigInt(8);
+const _4n$1 = BigInt(4), _5n$1 = BigInt(5), _8n$1 = BigInt(8);
 // prettier-ignore
 BigInt(9); BigInt(16);
 // Calculates a modulo b
-function mod(a, b) {
+function mod$1(a, b) {
     const result = a % b;
-    return result >= _0n$2 ? result : b + result;
+    return result >= _0n$7 ? result : b + result;
 }
 /**
  * Efficiently raise num to power and do modular division.
@@ -4945,41 +4948,41 @@ function mod(a, b) {
  * pow(2n, 6n, 11n) // 64n % 11n == 9n
  */
 // TODO: use field version && remove
-function pow(num, power, modulo) {
-    if (modulo <= _0n$2 || power < _0n$2)
+function pow$1(num, power, modulo) {
+    if (modulo <= _0n$7 || power < _0n$7)
         throw new Error('Expected power/modulo > 0');
-    if (modulo === _1n$3)
-        return _0n$2;
-    let res = _1n$3;
-    while (power > _0n$2) {
-        if (power & _1n$3)
+    if (modulo === _1n$9)
+        return _0n$7;
+    let res = _1n$9;
+    while (power > _0n$7) {
+        if (power & _1n$9)
             res = (res * num) % modulo;
         num = (num * num) % modulo;
-        power >>= _1n$3;
+        power >>= _1n$9;
     }
     return res;
 }
 // Does x ^ (2 ^ power) mod p. pow2(30, 4) == 30 ^ (2 ^ 4)
-function pow2(x, power, modulo) {
+function pow2$1(x, power, modulo) {
     let res = x;
-    while (power-- > _0n$2) {
+    while (power-- > _0n$7) {
         res *= res;
         res %= modulo;
     }
     return res;
 }
 // Inverses number over modulo
-function invert(number, modulo) {
-    if (number === _0n$2 || modulo <= _0n$2) {
+function invert$1(number, modulo) {
+    if (number === _0n$7 || modulo <= _0n$7) {
         throw new Error(`invert: expected positive integers, got n=${number} mod=${modulo}`);
     }
     // Euclidean GCD https://brilliant.org/wiki/extended-euclidean-algorithm/
     // Fermat's little theorem "CT-like" version inv(n) = n^(m-2) mod m is 30x slower.
-    let a = mod(number, modulo);
+    let a = mod$1(number, modulo);
     let b = modulo;
     // prettier-ignore
-    let x = _0n$2, u = _1n$3;
-    while (a !== _0n$2) {
+    let x = _0n$7, u = _1n$9;
+    while (a !== _0n$7) {
         // JIT applies optimization if those two lines follow each other
         const q = b / a;
         const r = b % a;
@@ -4988,9 +4991,9 @@ function invert(number, modulo) {
         b = a, a = r, x = u, u = m;
     }
     const gcd = b;
-    if (gcd !== _1n$3)
+    if (gcd !== _1n$9)
         throw new Error('invert: does not exist');
-    return mod(x, modulo);
+    return mod$1(x, modulo);
 }
 /**
  * Tonelli-Shanks square root search algorithm.
@@ -5000,24 +5003,24 @@ function invert(number, modulo) {
  * @param P field order
  * @returns function that takes field Fp (created from P) and number n
  */
-function tonelliShanks(P) {
+function tonelliShanks$1(P) {
     // Legendre constant: used to calculate Legendre symbol (a | p),
     // which denotes the value of a^((p-1)/2) (mod p).
     // (a | p) ≡ 1    if a is a square (mod p)
     // (a | p) ≡ -1   if a is not a square (mod p)
     // (a | p) ≡ 0    if a ≡ 0 (mod p)
-    const legendreC = (P - _1n$3) / _2n$1;
+    const legendreC = (P - _1n$9) / _2n$5;
     let Q, S, Z;
     // Step 1: By factoring out powers of 2 from p - 1,
     // find q and s such that p - 1 = q*(2^s) with q odd
-    for (Q = P - _1n$3, S = 0; Q % _2n$1 === _0n$2; Q /= _2n$1, S++)
+    for (Q = P - _1n$9, S = 0; Q % _2n$5 === _0n$7; Q /= _2n$5, S++)
         ;
     // Step 2: Select a non-square z such that (z | p) ≡ -1 and set c ≡ zq
-    for (Z = _2n$1; Z < P && pow(Z, legendreC, P) !== P - _1n$3; Z++)
+    for (Z = _2n$5; Z < P && pow$1(Z, legendreC, P) !== P - _1n$9; Z++)
         ;
     // Fast-path
     if (S === 1) {
-        const p1div4 = (P + _1n$3) / _4n;
+        const p1div4 = (P + _1n$9) / _4n$1;
         return function tonelliFast(Fp, n) {
             const root = Fp.pow(n, p1div4);
             if (!Fp.eql(Fp.sqr(root), n))
@@ -5026,7 +5029,7 @@ function tonelliShanks(P) {
         };
     }
     // Slow-path
-    const Q1div2 = (Q + _1n$3) / _2n$1;
+    const Q1div2 = (Q + _1n$9) / _2n$5;
     return function tonelliSlow(Fp, n) {
         // Step 0: Check that n is indeed a square: (n | p) should not be ≡ -1
         if (Fp.pow(n, legendreC) === Fp.neg(Fp.ONE))
@@ -5047,7 +5050,7 @@ function tonelliShanks(P) {
                 t2 = Fp.sqr(t2); // t2 *= t2
             }
             // NOTE: r-m-1 can be bigger than 32, need to convert to bigint before shift, otherwise there will be overflow
-            const ge = Fp.pow(g, _1n$3 << BigInt(r - m - 1)); // ge = 2^(r-m-1)
+            const ge = Fp.pow(g, _1n$9 << BigInt(r - m - 1)); // ge = 2^(r-m-1)
             g = Fp.sqr(ge); // g = ge * ge
             x = Fp.mul(x, ge); // x *= ge
             b = Fp.mul(b, g); // b *= g
@@ -5056,17 +5059,17 @@ function tonelliShanks(P) {
         return x;
     };
 }
-function FpSqrt(P) {
+function FpSqrt$1(P) {
     // NOTE: different algorithms can give different roots, it is up to user to decide which one they want.
     // For example there is FpSqrtOdd/FpSqrtEven to choice root based on oddness (used for hash-to-curve).
     // P ≡ 3 (mod 4)
     // √n = n^((P+1)/4)
-    if (P % _4n === _3n$1) {
+    if (P % _4n$1 === _3n$3) {
         // Not all roots possible!
         // const ORDER =
         //   0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaabn;
         // const NUM = 72057594037927816n;
-        const p1div4 = (P + _1n$3) / _4n;
+        const p1div4 = (P + _1n$9) / _4n$1;
         return function sqrt3mod4(Fp, n) {
             const root = Fp.pow(n, p1div4);
             // Throw if root**2 != n
@@ -5076,13 +5079,13 @@ function FpSqrt(P) {
         };
     }
     // Atkin algorithm for q ≡ 5 (mod 8), https://eprint.iacr.org/2012/685.pdf (page 10)
-    if (P % _8n === _5n) {
-        const c1 = (P - _5n) / _8n;
+    if (P % _8n$1 === _5n$1) {
+        const c1 = (P - _5n$1) / _8n$1;
         return function sqrt5mod8(Fp, n) {
-            const n2 = Fp.mul(n, _2n$1);
+            const n2 = Fp.mul(n, _2n$5);
             const v = Fp.pow(n2, c1);
             const nv = Fp.mul(n, v);
-            const i = Fp.mul(Fp.mul(nv, _2n$1), v);
+            const i = Fp.mul(Fp.mul(nv, _2n$5), v);
             const root = Fp.mul(nv, Fp.sub(i, Fp.ONE));
             if (!Fp.eql(Fp.sqr(root), n))
                 throw new Error('Cannot find square root');
@@ -5090,48 +5093,48 @@ function FpSqrt(P) {
         };
     }
     // Other cases: Tonelli-Shanks algorithm
-    return tonelliShanks(P);
+    return tonelliShanks$1(P);
 }
 // prettier-ignore
-const FIELD_FIELDS = [
+const FIELD_FIELDS$1 = [
     'create', 'isValid', 'is0', 'neg', 'inv', 'sqrt', 'sqr',
     'eql', 'add', 'sub', 'mul', 'pow', 'div',
     'addN', 'subN', 'mulN', 'sqrN'
 ];
-function validateField(field) {
+function validateField$1(field) {
     const initial = {
         ORDER: 'bigint',
         MASK: 'bigint',
         BYTES: 'isSafeInteger',
         BITS: 'isSafeInteger',
     };
-    const opts = FIELD_FIELDS.reduce((map, val) => {
+    const opts = FIELD_FIELDS$1.reduce((map, val) => {
         map[val] = 'function';
         return map;
     }, initial);
-    return validateObject(field, opts);
+    return validateObject$1(field, opts);
 }
 // Generic field functions
 /**
  * Same as `pow` but for Fp: non-constant-time.
  * Unsafe in some contexts: uses ladder, so can expose bigint bits.
  */
-function FpPow(f, num, power) {
+function FpPow$1(f, num, power) {
     // Should have same speed as pow for bigints
     // TODO: benchmark!
-    if (power < _0n$2)
+    if (power < _0n$7)
         throw new Error('Expected power > 0');
-    if (power === _0n$2)
+    if (power === _0n$7)
         return f.ONE;
-    if (power === _1n$3)
+    if (power === _1n$9)
         return num;
     let p = f.ONE;
     let d = num;
-    while (power > _0n$2) {
-        if (power & _1n$3)
+    while (power > _0n$7) {
+        if (power & _1n$9)
             p = f.mul(p, d);
         d = f.sqr(d);
-        power >>= _1n$3;
+        power >>= _1n$9;
     }
     return p;
 }
@@ -5139,7 +5142,7 @@ function FpPow(f, num, power) {
  * Efficiently invert an array of Field elements.
  * `inv(0)` will return `undefined` here: make sure to throw an error.
  */
-function FpInvertBatch(f, nums) {
+function FpInvertBatch$1(f, nums) {
     const tmp = new Array(nums.length);
     // Walk from first to last, multiply them by each other MOD p
     const lastMultiplied = nums.reduce((acc, num, i) => {
@@ -5160,7 +5163,7 @@ function FpInvertBatch(f, nums) {
     return tmp;
 }
 // CURVE.n lengths
-function nLength(n, nBitLength) {
+function nLength$1(n, nBitLength) {
     // Bit size, byte size of CURVE.n
     const _nBitLength = nBitLength !== undefined ? nBitLength : n.toString(2).length;
     const nByteLength = Math.ceil(_nBitLength / 8);
@@ -5178,52 +5181,52 @@ function nLength(n, nBitLength) {
  * @param isLE (def: false) if encoding / decoding should be in little-endian
  * @param redef optional faster redefinitions of sqrt and other methods
  */
-function Field(ORDER, bitLen, isLE = false, redef = {}) {
-    if (ORDER <= _0n$2)
+function Field$1(ORDER, bitLen, isLE = false, redef = {}) {
+    if (ORDER <= _0n$7)
         throw new Error(`Expected Field ORDER > 0, got ${ORDER}`);
-    const { nBitLength: BITS, nByteLength: BYTES } = nLength(ORDER, bitLen);
+    const { nBitLength: BITS, nByteLength: BYTES } = nLength$1(ORDER, bitLen);
     if (BYTES > 2048)
         throw new Error('Field lengths over 2048 bytes are not supported');
-    const sqrtP = FpSqrt(ORDER);
+    const sqrtP = FpSqrt$1(ORDER);
     const f = Object.freeze({
         ORDER,
         BITS,
         BYTES,
-        MASK: bitMask(BITS),
-        ZERO: _0n$2,
-        ONE: _1n$3,
-        create: (num) => mod(num, ORDER),
+        MASK: bitMask$1(BITS),
+        ZERO: _0n$7,
+        ONE: _1n$9,
+        create: (num) => mod$1(num, ORDER),
         isValid: (num) => {
             if (typeof num !== 'bigint')
                 throw new Error(`Invalid field element: expected bigint, got ${typeof num}`);
-            return _0n$2 <= num && num < ORDER; // 0 is valid element, but it's not invertible
+            return _0n$7 <= num && num < ORDER; // 0 is valid element, but it's not invertible
         },
-        is0: (num) => num === _0n$2,
-        isOdd: (num) => (num & _1n$3) === _1n$3,
-        neg: (num) => mod(-num, ORDER),
+        is0: (num) => num === _0n$7,
+        isOdd: (num) => (num & _1n$9) === _1n$9,
+        neg: (num) => mod$1(-num, ORDER),
         eql: (lhs, rhs) => lhs === rhs,
-        sqr: (num) => mod(num * num, ORDER),
-        add: (lhs, rhs) => mod(lhs + rhs, ORDER),
-        sub: (lhs, rhs) => mod(lhs - rhs, ORDER),
-        mul: (lhs, rhs) => mod(lhs * rhs, ORDER),
-        pow: (num, power) => FpPow(f, num, power),
-        div: (lhs, rhs) => mod(lhs * invert(rhs, ORDER), ORDER),
+        sqr: (num) => mod$1(num * num, ORDER),
+        add: (lhs, rhs) => mod$1(lhs + rhs, ORDER),
+        sub: (lhs, rhs) => mod$1(lhs - rhs, ORDER),
+        mul: (lhs, rhs) => mod$1(lhs * rhs, ORDER),
+        pow: (num, power) => FpPow$1(f, num, power),
+        div: (lhs, rhs) => mod$1(lhs * invert$1(rhs, ORDER), ORDER),
         // Same as above, but doesn't normalize
         sqrN: (num) => num * num,
         addN: (lhs, rhs) => lhs + rhs,
         subN: (lhs, rhs) => lhs - rhs,
         mulN: (lhs, rhs) => lhs * rhs,
-        inv: (num) => invert(num, ORDER),
+        inv: (num) => invert$1(num, ORDER),
         sqrt: redef.sqrt || ((n) => sqrtP(f, n)),
-        invertBatch: (lst) => FpInvertBatch(f, lst),
+        invertBatch: (lst) => FpInvertBatch$1(f, lst),
         // TODO: do we really need constant cmov?
         // We don't have const-time bigints anyway, so probably will be not very useful
         cmov: (a, b, c) => (c ? b : a),
-        toBytes: (num) => (isLE ? numberToBytesLE(num, BYTES) : numberToBytesBE(num, BYTES)),
+        toBytes: (num) => (isLE ? numberToBytesLE$1(num, BYTES) : numberToBytesBE$1(num, BYTES)),
         fromBytes: (bytes) => {
             if (bytes.length !== BYTES)
                 throw new Error(`Fp.fromBytes: expected ${BYTES}, got ${bytes.length}`);
-            return isLE ? bytesToNumberLE(bytes) : bytesToNumberBE(bytes);
+            return isLE ? bytesToNumberLE$1(bytes) : bytesToNumberBE$1(bytes);
         },
     });
     return Object.freeze(f);
@@ -5234,7 +5237,7 @@ function Field(ORDER, bitLen, isLE = false, redef = {}) {
  * @param fieldOrder number of field elements, usually CURVE.n
  * @returns byte length of field
  */
-function getFieldBytesLength(fieldOrder) {
+function getFieldBytesLength$1(fieldOrder) {
     if (typeof fieldOrder !== 'bigint')
         throw new Error('field order must be bigint');
     const bitLength = fieldOrder.toString(2).length;
@@ -5247,8 +5250,8 @@ function getFieldBytesLength(fieldOrder) {
  * @param fieldOrder number of field elements, usually CURVE.n
  * @returns byte length of target hash
  */
-function getMinHashLength(fieldOrder) {
-    const length = getFieldBytesLength(fieldOrder);
+function getMinHashLength$1(fieldOrder) {
+    const length = getFieldBytesLength$1(fieldOrder);
     return length + Math.ceil(length / 2);
 }
 /**
@@ -5264,23 +5267,23 @@ function getMinHashLength(fieldOrder) {
  * @param isLE interpret hash bytes as LE num
  * @returns valid private scalar
  */
-function mapHashToField(key, fieldOrder, isLE = false) {
+function mapHashToField$1(key, fieldOrder, isLE = false) {
     const len = key.length;
-    const fieldLen = getFieldBytesLength(fieldOrder);
-    const minLen = getMinHashLength(fieldOrder);
+    const fieldLen = getFieldBytesLength$1(fieldOrder);
+    const minLen = getMinHashLength$1(fieldOrder);
     // No small numbers: need to understand bias story. No huge numbers: easier to detect JS timings.
     if (len < 16 || len < minLen || len > 1024)
         throw new Error(`expected ${minLen}-1024 bytes of input, got ${len}`);
-    const num = isLE ? bytesToNumberBE(key) : bytesToNumberLE(key);
+    const num = isLE ? bytesToNumberBE$1(key) : bytesToNumberLE$1(key);
     // `mod(x, 11)` can sometimes produce 0. `mod(x, 10) + 1` is the same, but no 0
-    const reduced = mod(num, fieldOrder - _1n$3) + _1n$3;
-    return isLE ? numberToBytesLE(reduced, fieldLen) : numberToBytesBE(reduced, fieldLen);
+    const reduced = mod$1(num, fieldOrder - _1n$9) + _1n$9;
+    return isLE ? numberToBytesLE$1(reduced, fieldLen) : numberToBytesBE$1(reduced, fieldLen);
 }
 
 /*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
 // Abelian group utilities
-const _0n$1 = BigInt(0);
-const _1n$2 = BigInt(1);
+const _0n$6 = BigInt(0);
+const _1n$8 = BigInt(1);
 // Elliptic curve multiplication of Point by scalar. Fragile.
 // Scalars should always be less than curve order: this should be checked inside of a curve itself.
 // Creates precomputation tables for fast multiplication:
@@ -5292,7 +5295,7 @@ const _1n$2 = BigInt(1);
 // - wNAF reduces table size: 2x less memory + 2x faster generation, but 10% slower multiplication
 // TODO: Research returning 2d JS array of windows, instead of a single window. This would allow
 // windows to be in different memory locations
-function wNAF(c, bits) {
+function wNAF$1(c, bits) {
     const constTimeNegate = (condition, item) => {
         const neg = item.negate();
         return condition ? neg : item;
@@ -5308,11 +5311,11 @@ function wNAF(c, bits) {
         unsafeLadder(elm, n) {
             let p = c.ZERO;
             let d = elm;
-            while (n > _0n$1) {
-                if (n & _1n$2)
+            while (n > _0n$6) {
+                if (n & _1n$8)
                     p = p.add(d);
                 d = d.double();
-                n >>= _1n$2;
+                n >>= _1n$8;
             }
             return p;
         },
@@ -5369,7 +5372,7 @@ function wNAF(c, bits) {
                 // +224 => 256 - 32
                 if (wbits > windowSize) {
                     wbits -= maxNumber;
-                    n += _1n$2;
+                    n += _1n$8;
                 }
                 // This code was first written with assumption that 'f' and 'p' will never be infinity point:
                 // since each addition is multiplied by 2 ** W, it cannot cancel each other. However,
@@ -5412,9 +5415,9 @@ function wNAF(c, bits) {
         },
     };
 }
-function validateBasic(curve) {
-    validateField(curve.Fp);
-    validateObject(curve, {
+function validateBasic$1(curve) {
+    validateField$1(curve.Fp);
+    validateObject$1(curve, {
         n: 'bigint',
         h: 'bigint',
         Gx: 'field',
@@ -5425,7 +5428,7 @@ function validateBasic(curve) {
     });
     // Set defaults
     return Object.freeze({
-        ...nLength(curve.n, curve.nBitLength),
+        ...nLength$1(curve.n, curve.nBitLength),
         ...curve,
         ...{ p: curve.Fp.ORDER },
     });
@@ -5433,9 +5436,9 @@ function validateBasic(curve) {
 
 /*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
 // Short Weierstrass curve. The formula is: y² = x³ + ax + b
-function validatePointOpts(curve) {
-    const opts = validateBasic(curve);
-    validateObject(opts, {
+function validatePointOpts$1(curve) {
+    const opts = validateBasic$1(curve);
+    validateObject$1(opts, {
         a: 'field',
         b: 'field',
     }, {
@@ -5461,8 +5464,8 @@ function validatePointOpts(curve) {
     return Object.freeze({ ...opts });
 }
 // ASN.1 DER encoding utilities
-const { bytesToNumberBE: b2n, hexToBytes: h2b } = ut;
-const DER = {
+const { bytesToNumberBE: b2n$1, hexToBytes: h2b$1 } = ut$1;
+const DER$1 = {
     // asn.1 DER encoding utils
     Err: class DERErr extends Error {
         constructor(m = '') {
@@ -5470,7 +5473,7 @@ const DER = {
         }
     },
     _parseInt(data) {
-        const { Err: E } = DER;
+        const { Err: E } = DER$1;
         if (data.length < 2 || data[0] !== 0x02)
             throw new E('Invalid signature integer tag');
         const len = data[1];
@@ -5485,12 +5488,12 @@ const DER = {
             throw new E('Invalid signature integer: negative');
         if (res[0] === 0x00 && !(res[1] & 0b10000000))
             throw new E('Invalid signature integer: unnecessary leading zero');
-        return { d: b2n(res), l: data.subarray(len + 2) }; // d is data, l is left
+        return { d: b2n$1(res), l: data.subarray(len + 2) }; // d is data, l is left
     },
     toSig(hex) {
         // parse DER signature
-        const { Err: E } = DER;
-        const data = typeof hex === 'string' ? h2b(hex) : hex;
+        const { Err: E } = DER$1;
+        const data = typeof hex === 'string' ? h2b$1(hex) : hex;
         if (!(data instanceof Uint8Array))
             throw new Error('ui8a expected');
         let l = data.length;
@@ -5498,8 +5501,8 @@ const DER = {
             throw new E('Invalid signature tag');
         if (data[1] !== l - 2)
             throw new E('Invalid signature: incorrect length');
-        const { d: r, l: sBytes } = DER._parseInt(data.subarray(2));
-        const { d: s, l: rBytesLeft } = DER._parseInt(sBytes);
+        const { d: r, l: sBytes } = DER$1._parseInt(data.subarray(2));
+        const { d: s, l: rBytesLeft } = DER$1._parseInt(sBytes);
         if (rBytesLeft.length)
             throw new E('Invalid signature: left bytes after parsing');
         return { r, s };
@@ -5522,14 +5525,14 @@ const DER = {
 };
 // Be friendly to bad ECMAScript parsers by not using bigint literals
 // prettier-ignore
-const _0n = BigInt(0), _1n$1 = BigInt(1); BigInt(2); const _3n = BigInt(3); BigInt(4);
-function weierstrassPoints(opts) {
-    const CURVE = validatePointOpts(opts);
+const _0n$5 = BigInt(0), _1n$7 = BigInt(1); BigInt(2); const _3n$2 = BigInt(3); BigInt(4);
+function weierstrassPoints$1(opts) {
+    const CURVE = validatePointOpts$1(opts);
     const { Fp } = CURVE; // All curves has same field / group length as for now, but they can differ
     const toBytes = CURVE.toBytes ||
         ((_c, point, _isCompressed) => {
             const a = point.toAffine();
-            return concatBytes(Uint8Array.from([0x04]), Fp.toBytes(a.x), Fp.toBytes(a.y));
+            return concatBytes$4(Uint8Array.from([0x04]), Fp.toBytes(a.x), Fp.toBytes(a.y));
         });
     const fromBytes = CURVE.fromBytes ||
         ((bytes) => {
@@ -5558,7 +5561,7 @@ function weierstrassPoints(opts) {
         throw new Error('bad generator point: equation left != right');
     // Valid group elements reside in range 1..n-1
     function isWithinCurveOrder(num) {
-        return typeof num === 'bigint' && _0n < num && num < CURVE.n;
+        return typeof num === 'bigint' && _0n$5 < num && num < CURVE.n;
     }
     function assertGE(num) {
         if (!isWithinCurveOrder(num))
@@ -5570,7 +5573,7 @@ function weierstrassPoints(opts) {
         const { allowedPrivateKeyLengths: lengths, nByteLength, wrapPrivateKey, n } = CURVE;
         if (lengths && typeof key !== 'bigint') {
             if (key instanceof Uint8Array)
-                key = bytesToHex(key);
+                key = bytesToHex$4(key);
             // Normalize to hex string, pad. E.g. P521 would norm 130-132 char hex to 132-char bytes
             if (typeof key !== 'string' || !lengths.includes(key.length))
                 throw new Error('Invalid key');
@@ -5581,13 +5584,13 @@ function weierstrassPoints(opts) {
             num =
                 typeof key === 'bigint'
                     ? key
-                    : bytesToNumberBE(ensureBytes('private key', key, nByteLength));
+                    : bytesToNumberBE$1(ensureBytes$1('private key', key, nByteLength));
         }
         catch (error) {
             throw new Error(`private key must be ${nByteLength} bytes, hex or bigint, not ${typeof key}`);
         }
         if (wrapPrivateKey)
-            num = mod(num, n); // disabled by default, enabled for BLS
+            num = mod$1(num, n); // disabled by default, enabled for BLS
         assertGE(num); // num in range [1..N-1]
         return num;
     }
@@ -5648,7 +5651,7 @@ function weierstrassPoints(opts) {
          * @param hex short/long ECDSA hex
          */
         static fromHex(hex) {
-            const P = Point.fromAffine(fromBytes(ensureBytes('pointHex', hex)));
+            const P = Point.fromAffine(fromBytes(ensureBytes$1('pointHex', hex)));
             P.assertValidity();
             return P;
         }
@@ -5712,7 +5715,7 @@ function weierstrassPoints(opts) {
         // Cost: 8M + 3S + 3*a + 2*b3 + 15add.
         double() {
             const { a, b } = CURVE;
-            const b3 = Fp.mul(b, _3n);
+            const b3 = Fp.mul(b, _3n$2);
             const { px: X1, py: Y1, pz: Z1 } = this;
             let X3 = Fp.ZERO, Y3 = Fp.ZERO, Z3 = Fp.ZERO; // prettier-ignore
             let t0 = Fp.mul(X1, X1); // step 1
@@ -5758,7 +5761,7 @@ function weierstrassPoints(opts) {
             const { px: X2, py: Y2, pz: Z2 } = other;
             let X3 = Fp.ZERO, Y3 = Fp.ZERO, Z3 = Fp.ZERO; // prettier-ignore
             const a = CURVE.a;
-            const b3 = Fp.mul(CURVE.b, _3n);
+            const b3 = Fp.mul(CURVE.b, _3n$2);
             let t0 = Fp.mul(X1, X2); // step 1
             let t1 = Fp.mul(Y1, Y2);
             let t2 = Fp.mul(Z1, Z2);
@@ -5820,10 +5823,10 @@ function weierstrassPoints(opts) {
          */
         multiplyUnsafe(n) {
             const I = Point.ZERO;
-            if (n === _0n)
+            if (n === _0n$5)
                 return I;
             assertGE(n); // Will throw on 0
-            if (n === _1n$1)
+            if (n === _1n$7)
                 return this;
             const { endo } = CURVE;
             if (!endo)
@@ -5833,14 +5836,14 @@ function weierstrassPoints(opts) {
             let k1p = I;
             let k2p = I;
             let d = this;
-            while (k1 > _0n || k2 > _0n) {
-                if (k1 & _1n$1)
+            while (k1 > _0n$5 || k2 > _0n$5) {
+                if (k1 & _1n$7)
                     k1p = k1p.add(d);
-                if (k2 & _1n$1)
+                if (k2 & _1n$7)
                     k2p = k2p.add(d);
                 d = d.double();
-                k1 >>= _1n$1;
-                k2 >>= _1n$1;
+                k1 >>= _1n$7;
+                k2 >>= _1n$7;
             }
             if (k1neg)
                 k1p = k1p.negate();
@@ -5890,7 +5893,7 @@ function weierstrassPoints(opts) {
         multiplyAndAddUnsafe(Q, a, b) {
             const G = Point.BASE; // No Strauss-Shamir trick: we have 10% faster G precomputes
             const mul = (P, a // Select faster multiply() method
-            ) => (a === _0n || a === _1n$1 || !P.equals(G) ? P.multiplyUnsafe(a) : P.multiply(a));
+            ) => (a === _0n$5 || a === _1n$7 || !P.equals(G) ? P.multiplyUnsafe(a) : P.multiply(a));
             const sum = mul(this, a).add(mul(Q, b));
             return sum.is0() ? undefined : sum;
         }
@@ -5915,7 +5918,7 @@ function weierstrassPoints(opts) {
         }
         isTorsionFree() {
             const { h: cofactor, isTorsionFree } = CURVE;
-            if (cofactor === _1n$1)
+            if (cofactor === _1n$7)
                 return true; // No subgroups, always torsion-free
             if (isTorsionFree)
                 return isTorsionFree(Point, this);
@@ -5923,7 +5926,7 @@ function weierstrassPoints(opts) {
         }
         clearCofactor() {
             const { h: cofactor, clearCofactor } = CURVE;
-            if (cofactor === _1n$1)
+            if (cofactor === _1n$7)
                 return this; // Fast-path
             if (clearCofactor)
                 return clearCofactor(Point, this);
@@ -5934,13 +5937,13 @@ function weierstrassPoints(opts) {
             return toBytes(Point, this, isCompressed);
         }
         toHex(isCompressed = true) {
-            return bytesToHex(this.toRawBytes(isCompressed));
+            return bytesToHex$4(this.toRawBytes(isCompressed));
         }
     }
     Point.BASE = new Point(CURVE.Gx, CURVE.Gy, Fp.ONE);
     Point.ZERO = new Point(Fp.ZERO, Fp.ONE, Fp.ZERO);
     const _bits = CURVE.nBitLength;
-    const wnaf = wNAF(Point, CURVE.endo ? Math.ceil(_bits / 2) : _bits);
+    const wnaf = wNAF$1(Point, CURVE.endo ? Math.ceil(_bits / 2) : _bits);
     // Validate if generator point is on curve
     return {
         CURVE,
@@ -5950,9 +5953,9 @@ function weierstrassPoints(opts) {
         isWithinCurveOrder,
     };
 }
-function validateOpts(curve) {
-    const opts = validateBasic(curve);
-    validateObject(opts, {
+function validateOpts$1(curve) {
+    const opts = validateBasic$1(curve);
+    validateObject$1(opts, {
         hash: 'hash',
         hmac: 'function',
         randomBytes: 'function',
@@ -5963,26 +5966,26 @@ function validateOpts(curve) {
     });
     return Object.freeze({ lowS: true, ...opts });
 }
-function weierstrass(curveDef) {
-    const CURVE = validateOpts(curveDef);
+function weierstrass$1(curveDef) {
+    const CURVE = validateOpts$1(curveDef);
     const { Fp, n: CURVE_ORDER } = CURVE;
     const compressedLen = Fp.BYTES + 1; // e.g. 33 for 32
     const uncompressedLen = 2 * Fp.BYTES + 1; // e.g. 65 for 32
     function isValidFieldElement(num) {
-        return _0n < num && num < Fp.ORDER; // 0 is banned since it's not invertible FE
+        return _0n$5 < num && num < Fp.ORDER; // 0 is banned since it's not invertible FE
     }
     function modN(a) {
-        return mod(a, CURVE_ORDER);
+        return mod$1(a, CURVE_ORDER);
     }
     function invN(a) {
-        return invert(a, CURVE_ORDER);
+        return invert$1(a, CURVE_ORDER);
     }
-    const { ProjectivePoint: Point, normPrivateKeyToScalar, weierstrassEquation, isWithinCurveOrder, } = weierstrassPoints({
+    const { ProjectivePoint: Point, normPrivateKeyToScalar, weierstrassEquation, isWithinCurveOrder, } = weierstrassPoints$1({
         ...CURVE,
         toBytes(_c, point, isCompressed) {
             const a = point.toAffine();
             const x = Fp.toBytes(a.x);
-            const cat = concatBytes;
+            const cat = concatBytes$4;
             if (isCompressed) {
                 return cat(Uint8Array.from([point.hasEvenY() ? 0x02 : 0x03]), x);
             }
@@ -5996,12 +5999,12 @@ function weierstrass(curveDef) {
             const tail = bytes.subarray(1);
             // this.assertValidity() is done inside of fromHex
             if (len === compressedLen && (head === 0x02 || head === 0x03)) {
-                const x = bytesToNumberBE(tail);
+                const x = bytesToNumberBE$1(tail);
                 if (!isValidFieldElement(x))
                     throw new Error('Point is not on curve');
                 const y2 = weierstrassEquation(x); // y² = x³ + ax + b
                 let y = Fp.sqrt(y2); // y = y² ^ (p+1)/4
-                const isYOdd = (y & _1n$1) === _1n$1;
+                const isYOdd = (y & _1n$7) === _1n$7;
                 // ECDSA
                 const isHeadOdd = (head & 1) === 1;
                 if (isHeadOdd !== isYOdd)
@@ -6018,16 +6021,16 @@ function weierstrass(curveDef) {
             }
         },
     });
-    const numToNByteStr = (num) => bytesToHex(numberToBytesBE(num, CURVE.nByteLength));
+    const numToNByteStr = (num) => bytesToHex$4(numberToBytesBE$1(num, CURVE.nByteLength));
     function isBiggerThanHalfOrder(number) {
-        const HALF = CURVE_ORDER >> _1n$1;
+        const HALF = CURVE_ORDER >> _1n$7;
         return number > HALF;
     }
     function normalizeS(s) {
         return isBiggerThanHalfOrder(s) ? modN(-s) : s;
     }
     // slice bytes num
-    const slcNum = (b, from, to) => bytesToNumberBE(b.slice(from, to));
+    const slcNum = (b, from, to) => bytesToNumberBE$1(b.slice(from, to));
     /**
      * ECDSA signature with its (r, s) properties. Supports DER & compact representations.
      */
@@ -6041,13 +6044,13 @@ function weierstrass(curveDef) {
         // pair (bytes of r, bytes of s)
         static fromCompact(hex) {
             const l = CURVE.nByteLength;
-            hex = ensureBytes('compactSignature', hex, l * 2);
+            hex = ensureBytes$1('compactSignature', hex, l * 2);
             return new Signature(slcNum(hex, 0, l), slcNum(hex, l, 2 * l));
         }
         // DER encoded ECDSA signature
         // https://bitcoin.stackexchange.com/questions/57644/what-are-the-parts-of-a-bitcoin-transaction-input-script
         static fromDER(hex) {
-            const { r, s } = DER.toSig(ensureBytes('DER', hex));
+            const { r, s } = DER$1.toSig(ensureBytes$1('DER', hex));
             return new Signature(r, s);
         }
         assertValidity() {
@@ -6062,7 +6065,7 @@ function weierstrass(curveDef) {
         }
         recoverPublicKey(msgHash) {
             const { r, s, recovery: rec } = this;
-            const h = bits2int_modN(ensureBytes('msgHash', msgHash)); // Truncate hash
+            const h = bits2int_modN(ensureBytes$1('msgHash', msgHash)); // Truncate hash
             if (rec == null || ![0, 1, 2, 3].includes(rec))
                 throw new Error('recovery id invalid');
             const radj = rec === 2 || rec === 3 ? r + CURVE.n : r;
@@ -6088,14 +6091,14 @@ function weierstrass(curveDef) {
         }
         // DER-encoded
         toDERRawBytes() {
-            return hexToBytes(this.toDERHex());
+            return hexToBytes$3(this.toDERHex());
         }
         toDERHex() {
-            return DER.hexFromSig({ r: this.r, s: this.s });
+            return DER$1.hexFromSig({ r: this.r, s: this.s });
         }
         // padded bytes of r, then padded bytes of s
         toCompactRawBytes() {
-            return hexToBytes(this.toCompactHex());
+            return hexToBytes$3(this.toCompactHex());
         }
         toCompactHex() {
             return numToNByteStr(this.r) + numToNByteStr(this.s);
@@ -6117,8 +6120,8 @@ function weierstrass(curveDef) {
          * (groupLen + ceil(groupLen / 2)) with modulo bias being negligible.
          */
         randomPrivateKey: () => {
-            const length = getMinHashLength(CURVE.n);
-            return mapHashToField(CURVE.randomBytes(length), CURVE.n);
+            const length = getMinHashLength$1(CURVE.n);
+            return mapHashToField$1(CURVE.randomBytes(length), CURVE.n);
         },
         /**
          * Creates precompute table for an arbitrary EC point. Makes point "cached".
@@ -6184,7 +6187,7 @@ function weierstrass(curveDef) {
         function (bytes) {
             // For curves with nBitLength % 8 !== 0: bits2octets(bits2octets(m)) !== bits2octets(m)
             // for some cases, since bytes.length * 8 is not actual bitLength.
-            const num = bytesToNumberBE(bytes); // check for == u8 done here
+            const num = bytesToNumberBE$1(bytes); // check for == u8 done here
             const delta = bytes.length * 8 - CURVE.nBitLength; // truncate to nBitLength leftmost bits
             return delta > 0 ? num >> BigInt(delta) : num;
         };
@@ -6193,17 +6196,17 @@ function weierstrass(curveDef) {
             return modN(bits2int(bytes)); // can't use bytesToNumberBE here
         };
     // NOTE: pads output with zero as per spec
-    const ORDER_MASK = bitMask(CURVE.nBitLength);
+    const ORDER_MASK = bitMask$1(CURVE.nBitLength);
     /**
      * Converts to bytes. Checks if num in `[0..ORDER_MASK-1]` e.g.: `[0..2^256-1]`.
      */
     function int2octets(num) {
         if (typeof num !== 'bigint')
             throw new Error('bigint expected');
-        if (!(_0n <= num && num < ORDER_MASK))
+        if (!(_0n$5 <= num && num < ORDER_MASK))
             throw new Error(`bigint expected < 2^${CURVE.nBitLength}`);
         // works with order, can have different size than numToField!
-        return numberToBytesBE(num, CURVE.nByteLength);
+        return numberToBytesBE$1(num, CURVE.nByteLength);
     }
     // Steps A, D of RFC6979 3.2
     // Creates RFC6979 seed; converts msg/privKey to numbers.
@@ -6217,9 +6220,9 @@ function weierstrass(curveDef) {
         let { lowS, prehash, extraEntropy: ent } = opts; // generates low-s sigs by default
         if (lowS == null)
             lowS = true; // RFC6979 3.2: we skip step A, because we already provide hash
-        msgHash = ensureBytes('msgHash', msgHash);
+        msgHash = ensureBytes$1('msgHash', msgHash);
         if (prehash)
-            msgHash = ensureBytes('prehashed msgHash', hash(msgHash));
+            msgHash = ensureBytes$1('prehashed msgHash', hash(msgHash));
         // We can't later call bits2octets, since nested bits2int is broken for curves
         // with nBitLength % 8 !== 0. Because of that, we unwrap it here as int2octets call.
         // const bits2octets = (bits) => int2octets(bits2int_modN(bits))
@@ -6230,9 +6233,9 @@ function weierstrass(curveDef) {
         if (ent != null) {
             // K = HMAC_K(V || 0x00 || int2octets(x) || bits2octets(h1) || k')
             const e = ent === true ? randomBytes(Fp.BYTES) : ent; // generate random bytes OR pass as-is
-            seedArgs.push(ensureBytes('extraEntropy', e)); // check for being bytes
+            seedArgs.push(ensureBytes$1('extraEntropy', e)); // check for being bytes
         }
-        const seed = concatBytes(...seedArgs); // Step D of RFC6979 3.2
+        const seed = concatBytes$4(...seedArgs); // Step D of RFC6979 3.2
         const m = h1int; // NOTE: no need to call bits2int second time here, it is inside truncateHash!
         // Converts signature params into point w r/s, checks result for validity.
         function k2sig(kBytes) {
@@ -6243,15 +6246,15 @@ function weierstrass(curveDef) {
             const ik = invN(k); // k^-1 mod n
             const q = Point.BASE.multiply(k).toAffine(); // q = Gk
             const r = modN(q.x); // r = q.x mod n
-            if (r === _0n)
+            if (r === _0n$5)
                 return;
             // Can use scalar blinding b^-1(bm + bdr) where b ∈ [1,q−1] according to
             // https://tches.iacr.org/index.php/TCHES/article/view/7337/6509. We've decided against it:
             // a) dependency on CSPRNG b) 15% slowdown c) doesn't really help since bigints are not CT
             const s = modN(ik * modN(m + r * d)); // Not using blinding here
-            if (s === _0n)
+            if (s === _0n$5)
                 return;
-            let recovery = (q.x === r ? 0 : 2) | Number(q.y & _1n$1); // recovery bit (2 or 3, when q.x > n)
+            let recovery = (q.x === r ? 0 : 2) | Number(q.y & _1n$7); // recovery bit (2 or 3, when q.x > n)
             let normS = s;
             if (lowS && isBiggerThanHalfOrder(s)) {
                 normS = normalizeS(s); // if lowS was passed, ensure s is always
@@ -6279,7 +6282,7 @@ function weierstrass(curveDef) {
     function sign(msgHash, privKey, opts = defaultSigOpts) {
         const { seed, k2sig } = prepSig(msgHash, privKey, opts); // Steps A, D of RFC6979 3.2.
         const C = CURVE;
-        const drbg = createHmacDrbg(C.hash.outputLen, C.nByteLength, C.hmac);
+        const drbg = createHmacDrbg$1(C.hash.outputLen, C.nByteLength, C.hmac);
         return drbg(seed, k2sig); // Steps B, C, D, E, F, G
     }
     // Enable precomputes. Slows down first publicKey computation by 20ms.
@@ -6300,8 +6303,8 @@ function weierstrass(curveDef) {
      */
     function verify(signature, msgHash, publicKey, opts = defaultVerOpts) {
         const sg = signature;
-        msgHash = ensureBytes('msgHash', msgHash);
-        publicKey = ensureBytes('publicKey', publicKey);
+        msgHash = ensureBytes$1('msgHash', msgHash);
+        publicKey = ensureBytes$1('publicKey', publicKey);
         if ('strict' in opts)
             throw new Error('options.strict was renamed to lowS');
         const { lowS, prehash } = opts;
@@ -6315,7 +6318,7 @@ function weierstrass(curveDef) {
                     _sig = Signature.fromDER(sg);
                 }
                 catch (derError) {
-                    if (!(derError instanceof DER.Err))
+                    if (!(derError instanceof DER$1.Err))
                         throw derError;
                     _sig = Signature.fromCompact(sg);
                 }
@@ -6363,58 +6366,58 @@ function weierstrass(curveDef) {
 
 /*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
 // connects noble-curves to noble-hashes
-function getHash(hash) {
+function getHash$1(hash) {
     return {
         hash,
-        hmac: (key, ...msgs) => hmac(hash, key, concatBytes$1(...msgs)),
-        randomBytes: randomBytes$2,
+        hmac: (key, ...msgs) => hmac$1(hash, key, concatBytes$5(...msgs)),
+        randomBytes: randomBytes$3,
     };
 }
-function createCurve(curveDef, defHash) {
-    const create = (hash) => weierstrass({ ...curveDef, ...getHash(hash) });
+function createCurve$1(curveDef, defHash) {
+    const create = (hash) => weierstrass$1({ ...curveDef, ...getHash$1(hash) });
     return Object.freeze({ ...create(defHash), create });
 }
 
 /*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
-const secp256k1P = BigInt('0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f');
-const secp256k1N = BigInt('0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141');
-const _1n = BigInt(1);
-const _2n = BigInt(2);
-const divNearest = (a, b) => (a + b / _2n) / b;
+const secp256k1P$1 = BigInt('0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f');
+const secp256k1N$1 = BigInt('0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141');
+const _1n$6 = BigInt(1);
+const _2n$4 = BigInt(2);
+const divNearest$1 = (a, b) => (a + b / _2n$4) / b;
 /**
  * √n = n^((p+1)/4) for fields p = 3 mod 4. We unwrap the loop and multiply bit-by-bit.
  * (P+1n/4n).toString(2) would produce bits [223x 1, 0, 22x 1, 4x 0, 11, 00]
  */
-function sqrtMod(y) {
-    const P = secp256k1P;
+function sqrtMod$1(y) {
+    const P = secp256k1P$1;
     // prettier-ignore
     const _3n = BigInt(3), _6n = BigInt(6), _11n = BigInt(11), _22n = BigInt(22);
     // prettier-ignore
     const _23n = BigInt(23), _44n = BigInt(44), _88n = BigInt(88);
     const b2 = (y * y * y) % P; // x^3, 11
     const b3 = (b2 * b2 * y) % P; // x^7
-    const b6 = (pow2(b3, _3n, P) * b3) % P;
-    const b9 = (pow2(b6, _3n, P) * b3) % P;
-    const b11 = (pow2(b9, _2n, P) * b2) % P;
-    const b22 = (pow2(b11, _11n, P) * b11) % P;
-    const b44 = (pow2(b22, _22n, P) * b22) % P;
-    const b88 = (pow2(b44, _44n, P) * b44) % P;
-    const b176 = (pow2(b88, _88n, P) * b88) % P;
-    const b220 = (pow2(b176, _44n, P) * b44) % P;
-    const b223 = (pow2(b220, _3n, P) * b3) % P;
-    const t1 = (pow2(b223, _23n, P) * b22) % P;
-    const t2 = (pow2(t1, _6n, P) * b2) % P;
-    const root = pow2(t2, _2n, P);
-    if (!Fp.eql(Fp.sqr(root), y))
+    const b6 = (pow2$1(b3, _3n, P) * b3) % P;
+    const b9 = (pow2$1(b6, _3n, P) * b3) % P;
+    const b11 = (pow2$1(b9, _2n$4, P) * b2) % P;
+    const b22 = (pow2$1(b11, _11n, P) * b11) % P;
+    const b44 = (pow2$1(b22, _22n, P) * b22) % P;
+    const b88 = (pow2$1(b44, _44n, P) * b44) % P;
+    const b176 = (pow2$1(b88, _88n, P) * b88) % P;
+    const b220 = (pow2$1(b176, _44n, P) * b44) % P;
+    const b223 = (pow2$1(b220, _3n, P) * b3) % P;
+    const t1 = (pow2$1(b223, _23n, P) * b22) % P;
+    const t2 = (pow2$1(t1, _6n, P) * b2) % P;
+    const root = pow2$1(t2, _2n$4, P);
+    if (!Fp$1.eql(Fp$1.sqr(root), y))
         throw new Error('Cannot find square root');
     return root;
 }
-const Fp = Field(secp256k1P, undefined, undefined, { sqrt: sqrtMod });
-const secp256k1 = createCurve({
+const Fp$1 = Field$1(secp256k1P$1, undefined, undefined, { sqrt: sqrtMod$1 });
+const secp256k1$1 = createCurve$1({
     a: BigInt(0),
     b: BigInt(7),
-    Fp,
-    n: secp256k1N,
+    Fp: Fp$1,
+    n: secp256k1N$1,
     // Base point (x, y) aka generator point
     Gx: BigInt('55066263022277343669578718895168534326250603453777594175500187360389116729240'),
     Gy: BigInt('32670510020758816978083085130507043184471273380659243275938904335757337482424'),
@@ -6429,16 +6432,16 @@ const secp256k1 = createCurve({
     endo: {
         beta: BigInt('0x7ae96a2b657c07106e64479eac3434e99cf0497512f58995c1396c28719501ee'),
         splitScalar: (k) => {
-            const n = secp256k1N;
+            const n = secp256k1N$1;
             const a1 = BigInt('0x3086d221a7d46bcde86c90e49284eb15');
-            const b1 = -_1n * BigInt('0xe4437ed6010e88286f547fa90abfe4c3');
+            const b1 = -_1n$6 * BigInt('0xe4437ed6010e88286f547fa90abfe4c3');
             const a2 = BigInt('0x114ca50f7a8e2f3f657c1108d9d44cfd8');
             const b2 = a1;
             const POW_2_128 = BigInt('0x100000000000000000000000000000000'); // (2n**128n).toString(16)
-            const c1 = divNearest(b2 * k, n);
-            const c2 = divNearest(-b1 * k, n);
-            let k1 = mod(k - c1 * a1 - c2 * a2, n);
-            let k2 = mod(-c1 * b1 - c2 * b2, n);
+            const c1 = divNearest$1(b2 * k, n);
+            const c2 = divNearest$1(-b1 * k, n);
+            let k1 = mod$1(k - c1 * a1 - c2 * a2, n);
+            let k2 = mod$1(-c1 * b1 - c2 * b2, n);
             const k1neg = k1 > POW_2_128;
             const k2neg = k2 > POW_2_128;
             if (k1neg)
@@ -6451,11 +6454,11 @@ const secp256k1 = createCurve({
             return { k1neg, k1, k2neg, k2 };
         },
     },
-}, sha256$1);
+}, sha256$2);
 // Schnorr signatures are superior to ECDSA from above. Below is Schnorr-specific BIP0340 code.
 // https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki
 BigInt(0);
-secp256k1.ProjectivePoint;
+secp256k1$1.ProjectivePoint;
 
 /**
  *  A constant for the zero address.
@@ -6773,7 +6776,7 @@ class Signature {
                 return toUint256(s);
             }
             if (yParityAndS != null) {
-                assertError(isHexString(yParityAndS, 32), "invalid yParityAndS");
+                assertError(isHexString$1(yParityAndS, 32), "invalid yParityAndS");
                 const bytes = getBytes(yParityAndS);
                 bytes[0] &= 0x7f;
                 return hexlify(bytes);
@@ -6791,7 +6794,7 @@ class Signature {
                 };
             }
             if (yParityAndS != null) {
-                assertError(isHexString(yParityAndS, 32), "invalid yParityAndS");
+                assertError(isHexString$1(yParityAndS, 32), "invalid yParityAndS");
                 return { v: ((getBytes(yParityAndS)[0] & 0x80) ? 28 : 27) };
             }
             if (yParity != null) {
@@ -6856,7 +6859,7 @@ class SigningKey {
      */
     sign(digest) {
         assertArgument(dataLength(digest) === 32, "invalid digest length", "digest", digest);
-        const sig = secp256k1.sign(getBytesCopy(digest), getBytesCopy(this.#privateKey), {
+        const sig = secp256k1$1.sign(getBytesCopy(digest), getBytesCopy(this.#privateKey), {
             lowS: true
         });
         return Signature.from({
@@ -6889,7 +6892,7 @@ class SigningKey {
      */
     computeSharedSecret(other) {
         const pubKey = SigningKey.computePublicKey(other);
-        return hexlify(secp256k1.getSharedSecret(getBytesCopy(this.#privateKey), getBytes(pubKey), false));
+        return hexlify(secp256k1$1.getSharedSecret(getBytesCopy(this.#privateKey), getBytes(pubKey), false));
     }
     /**
      *  Compute the public key for %%key%%, optionally %%compressed%%.
@@ -6920,7 +6923,7 @@ class SigningKey {
         let bytes = getBytes(key, "key");
         // private key
         if (bytes.length === 32) {
-            const pubKey = secp256k1.getPublicKey(bytes, !!compressed);
+            const pubKey = secp256k1$1.getPublicKey(bytes, !!compressed);
             return hexlify(pubKey);
         }
         // raw public key; use uncompressed key with 0x04 prefix
@@ -6930,7 +6933,7 @@ class SigningKey {
             pub.set(bytes, 1);
             bytes = pub;
         }
-        const point = secp256k1.ProjectivePoint.fromHex(bytes);
+        const point = secp256k1$1.ProjectivePoint.fromHex(bytes);
         return hexlify(point.toRawBytes(compressed));
     }
     /**
@@ -6954,7 +6957,7 @@ class SigningKey {
     static recoverPublicKey(digest, signature) {
         assertArgument(dataLength(digest) === 32, "invalid digest length", "digest", digest);
         const sig = Signature.from(signature);
-        let secpSig = secp256k1.Signature.fromCompact(getBytesCopy(concat([sig.r, sig.s])));
+        let secpSig = secp256k1$1.Signature.fromCompact(getBytesCopy(concat([sig.r, sig.s])));
         secpSig = secpSig.addRecoveryBit(sig.yParity);
         const pubKey = secpSig.recoverPublicKey(getBytesCopy(digest));
         assertArgument(pubKey != null, "invalid signautre for digest", "signature", signature);
@@ -6971,8 +6974,8 @@ class SigningKey {
      *  addresses from parent public keys and chain codes.
      */
     static addPoints(p0, p1, compressed) {
-        const pub0 = secp256k1.ProjectivePoint.fromHex(SigningKey.computePublicKey(p0).substring(2));
-        const pub1 = secp256k1.ProjectivePoint.fromHex(SigningKey.computePublicKey(p1).substring(2));
+        const pub0 = secp256k1$1.ProjectivePoint.fromHex(SigningKey.computePublicKey(p0).substring(2));
+        const pub1 = secp256k1$1.ProjectivePoint.fromHex(SigningKey.computePublicKey(p1).substring(2));
         return "0x" + pub0.add(pub1).toHex(!!compressed);
     }
 }
@@ -6989,15 +6992,15 @@ class SigningKey {
  */
 function lock() {
     computeHmac.lock();
-    keccak256.lock();
+    keccak256$1.lock();
     pbkdf2.lock();
-    randomBytes.lock();
+    randomBytes$1.lock();
     ripemd160.lock();
     scrypt.lock();
     scryptSync.lock();
-    sha256.lock();
+    sha256$1.lock();
     sha512.lock();
-    randomBytes.lock();
+    randomBytes$1.lock();
 }
 
 const BN_0$6 = BigInt(0);
@@ -7012,7 +7015,7 @@ function getChecksumAddress(address) {
     for (let i = 0; i < 40; i++) {
         expanded[i] = chars[i].charCodeAt(0);
     }
-    const hashed = getBytes(keccak256(expanded));
+    const hashed = getBytes(keccak256$1(expanded));
     for (let i = 0; i < 40; i += 2) {
         if ((hashed[i >> 1] >> 4) >= 8) {
             chars[i] = chars[i].toUpperCase();
@@ -7184,7 +7187,7 @@ function getCreateAddress(tx) {
     else {
         nonceHex = "0x" + nonceHex;
     }
-    return getAddress(dataSlice(keccak256(encodeRlp([from, nonceHex])), 12));
+    return getAddress(dataSlice(keccak256$1(encodeRlp([from, nonceHex])), 12));
 }
 /**
  *  Returns the address that would result from a ``CREATE2`` operation
@@ -7215,7 +7218,7 @@ function getCreate2Address(_from, _salt, _initCodeHash) {
     const initCodeHash = getBytes(_initCodeHash, "initCodeHash");
     assertArgument(salt.length === 32, "salt must be 32 bytes", "salt", _salt);
     assertArgument(initCodeHash.length === 32, "initCodeHash must be 32 bytes", "initCodeHash", _initCodeHash);
-    return getAddress(dataSlice(keccak256(concat(["0xff", from, salt, initCodeHash])), 12));
+    return getAddress(dataSlice(keccak256$1(concat(["0xff", from, salt, initCodeHash])), 12));
 }
 
 /**
@@ -7271,7 +7274,7 @@ function isAddress(value) {
 async function checkAddress(target, promise) {
     const result = await promise;
     if (result == null || result === "0x0000000000000000000000000000000000000000") {
-        assert(typeof (target) !== "string", "unconfigured name", "UNCONFIGURED_NAME", { value: target });
+        assert$2(typeof (target) !== "string", "unconfigured name", "UNCONFIGURED_NAME", { value: target });
         assertArgument(false, "invalid AddressLike value; did not resolve to a value address", "target", target);
     }
     return getAddress(result);
@@ -7318,7 +7321,7 @@ function resolveAddress(target, resolver) {
         if (target.match(/^0x[0-9a-f]{40}$/i)) {
             return getAddress(target);
         }
-        assert(resolver != null, "ENS resolution requires a provider", "UNSUPPORTED_OPERATION", { operation: "resolveName" });
+        assert$2(resolver != null, "ENS resolution requires a provider", "UNSUPPORTED_OPERATION", { operation: "resolveName" });
         return checkAddress(target, resolver.resolveName(target));
     }
     else if (isAddressable(target)) {
@@ -7988,8 +7991,8 @@ function pack(writer, coders, values) {
         let unique = {};
         arrayValues = coders.map((coder) => {
             const name = coder.localName;
-            assert(name, "cannot encode object for signature with missing names", "INVALID_ARGUMENT", { argument: "values", info: { coder }, value: values });
-            assert(!unique[name], "cannot encode object for signature with duplicate names", "INVALID_ARGUMENT", { argument: "values", info: { coder }, value: values });
+            assert$2(name, "cannot encode object for signature with missing names", "INVALID_ARGUMENT", { argument: "values", info: { coder }, value: values });
+            assert$2(!unique[name], "cannot encode object for signature with duplicate names", "INVALID_ARGUMENT", { argument: "values", info: { coder }, value: values });
             unique[name] = true;
             return values[name];
         });
@@ -8121,7 +8124,7 @@ class ArrayCoder extends Coder {
             // slot requires at least 32 bytes for their value (or 32
             // bytes as a link to the data). This could use a much
             // tighter bound, but we are erroring on the side of safety.
-            assert(count * WordSize <= reader.dataLength, "insufficient data length", "BUFFER_OVERRUN", { buffer: reader.bytes, offset: count * WordSize, length: reader.dataLength });
+            assert$2(count * WordSize <= reader.dataLength, "insufficient data length", "BUFFER_OVERRUN", { buffer: reader.bytes, offset: count * WordSize, length: reader.dataLength });
         }
         let coders = [];
         for (let i = 0; i < count; i++) {
@@ -8361,7 +8364,7 @@ class TupleCoder extends Coder {
  *    //_result:
  */
 function id(value) {
-    return keccak256(toUtf8Bytes(value));
+    return keccak256$1(toUtf8Bytes(value));
 }
 
 // created 2023-09-12T22:05:14.211Z
@@ -9085,10 +9088,10 @@ function should_escape(cp) {
 }
 
 function ens_normalize(name) {
-	return flatten(split(name, nfc, filter_fe0f));
+	return flatten(split$1(name, nfc, filter_fe0f));
 }
 
-function split(name, nf, ef) {
+function split$1(name, nf, ef) {
 	if (!name) return []; // 20230719: empty name allowance
 	init();
 	let offset = 0;
@@ -9477,7 +9480,7 @@ function namehash(name) {
     let result = Zeros;
     const comps = ensNameSplit(name);
     while (comps.length) {
-        result = keccak256(concat([result, keccak256((comps.pop()))]));
+        result = keccak256$1(concat([result, keccak256$1((comps.pop()))]));
     }
     return hexlify(result);
 }
@@ -9504,7 +9507,7 @@ function accessSetify(addr, storageKeys) {
     return {
         address: getAddress(addr),
         storageKeys: storageKeys.map((storageKey, index) => {
-            assertArgument(isHexString(storageKey, 32), "invalid slot", `storageKeys[${index}]`, storageKey);
+            assertArgument(isHexString$1(storageKey, 32), "invalid slot", `storageKeys[${index}]`, storageKey);
             return storageKey.toLowerCase();
         })
     };
@@ -9548,7 +9551,7 @@ function computeAddress(key) {
     else {
         pubkey = key.publicKey;
     }
-    return getAddress(keccak256("0x" + pubkey.substring(4)).substring(26));
+    return getAddress(keccak256$1("0x" + pubkey.substring(4)).substring(26));
 }
 /**
  *  Returns the recovered address for the private key that was
@@ -9639,7 +9642,7 @@ function _parseLegacy(data) {
             s: zeroPadValue(fields[8], 32),
             v
         });
-        tx.hash = keccak256(data);
+        tx.hash = keccak256$1(data);
     }
     return tx;
 }
@@ -9732,7 +9735,7 @@ function _parseEip1559(data) {
     if (fields.length === 9) {
         return tx;
     }
-    tx.hash = keccak256(data);
+    tx.hash = keccak256$1(data);
     _parseEipSignature(tx, fields.slice(9));
     return tx;
 }
@@ -9773,7 +9776,7 @@ function _parseEip2930(data) {
     if (fields.length === 8) {
         return tx;
     }
-    tx.hash = keccak256(data);
+    tx.hash = keccak256$1(data);
     _parseEipSignature(tx, fields.slice(8));
     return tx;
 }
@@ -9998,7 +10001,7 @@ class Transaction {
         if (this.signature == null) {
             return null;
         }
-        return keccak256(this.serialized);
+        return keccak256$1(this.serialized);
     }
     /**
      *  The pre-image hash of this transaction.
@@ -10007,7 +10010,7 @@ class Transaction {
      *  this transaction.
      */
     get unsignedHash() {
-        return keccak256(this.unsignedSerialized);
+        return keccak256$1(this.unsignedSerialized);
     }
     /**
      *  The sending address, if signed. Otherwise, ``null``.
@@ -10044,7 +10047,7 @@ class Transaction {
      *  use [[unsignedSerialized]].
      */
     get serialized() {
-        assert(this.signature != null, "cannot serialize unsigned transaction; maybe you meant .unsignedSerialized", "UNSUPPORTED_OPERATION", { operation: ".serialized" });
+        assert$2(this.signature != null, "cannot serialize unsigned transaction; maybe you meant .unsignedSerialized", "UNSUPPORTED_OPERATION", { operation: ".serialized" });
         switch (this.inferType()) {
             case 0:
                 return _serializeLegacy(this, this.signature);
@@ -10053,7 +10056,7 @@ class Transaction {
             case 2:
                 return _serializeEip1559(this, this.signature);
         }
-        assert(false, "unsupported transaction type", "UNSUPPORTED_OPERATION", { operation: ".serialized" });
+        assert$2(false, "unsupported transaction type", "UNSUPPORTED_OPERATION", { operation: ".serialized" });
     }
     /**
      *  The transaction pre-image.
@@ -10070,7 +10073,7 @@ class Transaction {
             case 2:
                 return _serializeEip1559(this);
         }
-        assert(false, "unsupported transaction type", "UNSUPPORTED_OPERATION", { operation: ".unsignedSerialized" });
+        assert$2(false, "unsupported transaction type", "UNSUPPORTED_OPERATION", { operation: ".unsignedSerialized" });
     }
     /**
      *  Return the most "likely" type; currently the highest
@@ -10092,13 +10095,13 @@ class Transaction {
         //    throw new Error("transaction cannot have gasPrice and maxFeePerGas");
         //}
         if (this.maxFeePerGas != null && this.maxPriorityFeePerGas != null) {
-            assert(this.maxFeePerGas >= this.maxPriorityFeePerGas, "priorityFee cannot be more than maxFee", "BAD_DATA", { value: this });
+            assert$2(this.maxFeePerGas >= this.maxPriorityFeePerGas, "priorityFee cannot be more than maxFee", "BAD_DATA", { value: this });
         }
         //if (this.type === 2 && hasGasPrice) {
         //    throw new Error("eip-1559 transaction cannot have gasPrice");
         //}
-        assert(!hasFee || (this.type !== 0 && this.type !== 1), "transaction type cannot have maxFeePerGas or maxPriorityFeePerGas", "BAD_DATA", { value: this });
-        assert(this.type !== 0 || !hasAccessList, "legacy transaction cannot have accessList", "BAD_DATA", { value: this });
+        assert$2(!hasFee || (this.type !== 0 && this.type !== 1), "transaction type cannot have maxFeePerGas or maxPriorityFeePerGas", "BAD_DATA", { value: this });
+        assert$2(this.type !== 0 || !hasAccessList, "legacy transaction cannot have accessList", "BAD_DATA", { value: this });
         const types = [];
         // Explicit type
         if (this.type != null) {
@@ -10206,7 +10209,7 @@ class Transaction {
                 case 1: return Transaction.from(_parseEip2930(payload));
                 case 2: return Transaction.from(_parseEip1559(payload));
             }
-            assert(false, "unsupported transaction type", "UNSUPPORTED_OPERATION", { operation: "from" });
+            assert$2(false, "unsupported transaction type", "UNSUPPORTED_OPERATION", { operation: "from" });
         }
         const result = new Transaction();
         if (tx.type != null) {
@@ -10289,7 +10292,7 @@ function hashMessage(message) {
     if (typeof (message) === "string") {
         message = toUtf8Bytes(message);
     }
-    return keccak256(concat([
+    return keccak256$1(concat([
         toUtf8Bytes(MessagePrefix),
         toUtf8Bytes(String(message.length)),
         message
@@ -10389,7 +10392,7 @@ function solidityPacked(types, values) {
  *       //_result:
  */
 function solidityPackedKeccak256(types, values) {
-    return keccak256(solidityPacked(types, values));
+    return keccak256$1(solidityPacked(types, values));
 }
 /**
  *   Computes the [[link-solc-packed]] [[sha256]] hash of %%values%%
@@ -10401,7 +10404,7 @@ function solidityPackedKeccak256(types, values) {
  *       //_result:
  */
 function solidityPackedSha256(types, values) {
-    return sha256(solidityPacked(types, values));
+    return sha256$1(solidityPacked(types, values));
 }
 
 //import { TypedDataDomain, TypedDataField } from "@ethersproject/providerabstract-signer";
@@ -10499,7 +10502,7 @@ function getBaseEncoder(type) {
             return ((!value) ? hexFalse : hexTrue);
         };
         case "bytes": return function (value) {
-            return keccak256(value);
+            return keccak256$1(value);
         };
         case "string": return function (value) {
             return id(value);
@@ -10637,9 +10640,9 @@ class TypedDataEncoder {
                 assertArgument(!match[3] || parseInt(match[3]) === value.length, `array length mismatch; expected length ${parseInt(match[3])}`, "value", value);
                 let result = value.map(subEncoder);
                 if (this.#fullTypes.has(subtype)) {
-                    result = result.map(keccak256);
+                    result = result.map(keccak256$1);
                 }
-                return keccak256(concat(result));
+                return keccak256$1(concat(result));
             };
         }
         // Struct
@@ -10650,7 +10653,7 @@ class TypedDataEncoder {
                 const values = fields.map(({ name, type }) => {
                     const result = this.getEncoder(type)(value[name]);
                     if (this.#fullTypes.has(type)) {
-                        return keccak256(result);
+                        return keccak256$1(result);
                     }
                     return result;
                 });
@@ -10678,7 +10681,7 @@ class TypedDataEncoder {
      *  Returns the hash of %%value%% for the type of %%name%%.
      */
     hashStruct(name, value) {
-        return keccak256(this.encodeData(name, value));
+        return keccak256$1(this.encodeData(name, value));
     }
     /**
      *  Return the fulled encoded %%value%% for the [[types]].
@@ -10779,7 +10782,7 @@ class TypedDataEncoder {
      *  Return the hash of the fully encoded [[link-eip-712]] %%value%% for %%types%% with %%domain%%.
      */
     static hash(domain, types, value) {
-        return keccak256(TypedDataEncoder.encode(domain, types, value));
+        return keccak256$1(TypedDataEncoder.encode(domain, types, value));
     }
     // Replaces all address types with ENS names with their looked up address
     /**
@@ -10798,14 +10801,14 @@ class TypedDataEncoder {
         // Look up all ENS names
         const ensCache = {};
         // Do we need to look up the domain's verifyingContract?
-        if (domain.verifyingContract && !isHexString(domain.verifyingContract, 20)) {
+        if (domain.verifyingContract && !isHexString$1(domain.verifyingContract, 20)) {
             ensCache[domain.verifyingContract] = "0x";
         }
         // We are going to use the encoder to visit all the base values
         const encoder = TypedDataEncoder.from(types);
         // Get a list of all the addresses
         encoder.visit(value, (type, value) => {
-            if (type === "address" && !isHexString(value, 20)) {
+            if (type === "address" && !isHexString$1(value, 20)) {
                 ensCache[value] = "0x";
             }
             return value;
@@ -11638,7 +11641,7 @@ class Fragment {
                 case "function": return FunctionFragment.from(obj);
                 case "struct": return StructFragment.from(obj);
             }
-            assert(false, `unsupported type: ${obj.type}`, "UNSUPPORTED_OPERATION", {
+            assert$2(false, `unsupported type: ${obj.type}`, "UNSUPPORTED_OPERATION", {
                 operation: "Fragment.from"
             });
         }
@@ -11872,7 +11875,7 @@ class ConstructorFragment extends Fragment {
      *  Returns a string representation of this constructor as %%format%%.
      */
     format(format) {
-        assert(format != null && format !== "sighash", "cannot format a constructor for sighash", "UNSUPPORTED_OPERATION", { operation: "format(sighash)" });
+        assert$2(format != null && format !== "sighash", "cannot format a constructor for sighash", "UNSUPPORTED_OPERATION", { operation: "format(sighash)" });
         if (format === "json") {
             return JSON.stringify({
                 type: "constructor",
@@ -12758,7 +12761,7 @@ class Interface {
     // Find a function definition by any means necessary (unless it is ambiguous)
     #getFunction(key, values, forceUnique) {
         // Selector
-        if (isHexString(key)) {
+        if (isHexString$1(key)) {
             const selector = key.toLowerCase();
             for (const fragment of this.#functions.values()) {
                 if (selector === fragment.selector) {
@@ -12885,7 +12888,7 @@ class Interface {
     // Find an event definition by any means necessary (unless it is ambiguous)
     #getEvent(key, values, forceUnique) {
         // EventTopic
-        if (isHexString(key)) {
+        if (isHexString$1(key)) {
             const eventTopic = key.toLowerCase();
             for (const fragment of this.#events.values()) {
                 if (eventTopic === fragment.topicHash) {
@@ -12995,7 +12998,7 @@ class Interface {
      *  the ABI, this will throw.
      */
     getError(key, values) {
-        if (isHexString(key)) {
+        if (isHexString$1(key)) {
             const selector = key.toLowerCase();
             if (BuiltinErrors[selector]) {
                 return ErrorFragment.from(BuiltinErrors[selector].signature);
@@ -13192,7 +13195,7 @@ getSelector(fragment: ErrorFragment | FunctionFragment): string {
             }
         }
         // Call returned data with no error, but the data is junk
-        assert(false, message, "BAD_DATA", {
+        assert$2(false, message, "BAD_DATA", {
             value: hexlify(bytes),
             info: { method: fragment.name, signature: fragment.format() }
         });
@@ -13283,7 +13286,7 @@ getSelector(fragment: ErrorFragment | FunctionFragment): string {
             assertArgument(f, "unknown event", "eventFragment", fragment);
             fragment = f;
         }
-        assert(values.length <= fragment.inputs.length, `too many arguments for ${fragment.format()}`, "UNEXPECTED_ARGUMENT", { count: values.length, expectedCount: fragment.inputs.length });
+        assert$2(values.length <= fragment.inputs.length, `too many arguments for ${fragment.format()}`, "UNEXPECTED_ARGUMENT", { count: values.length, expectedCount: fragment.inputs.length });
         const topics = [];
         if (!fragment.anonymous) {
             topics.push(fragment.topicHash);
@@ -13294,7 +13297,7 @@ getSelector(fragment: ErrorFragment | FunctionFragment): string {
                 return id(value);
             }
             else if (param.type === "bytes") {
-                return keccak256(hexlify(value));
+                return keccak256$1(hexlify(value));
             }
             if (param.type === "bool" && typeof (value) === "boolean") {
                 value = (value ? "0x01" : "0x00");
@@ -13356,7 +13359,7 @@ getSelector(fragment: ErrorFragment | FunctionFragment): string {
                     topics.push(id(value));
                 }
                 else if (param.type === "bytes") {
-                    topics.push(keccak256(value));
+                    topics.push(keccak256$1(value));
                 }
                 else if (param.baseType === "tuple" || param.baseType === "array") {
                     // @TODO
@@ -13385,7 +13388,7 @@ getSelector(fragment: ErrorFragment | FunctionFragment): string {
         }
         if (topics != null && !fragment.anonymous) {
             const eventTopic = fragment.topicHash;
-            assertArgument(isHexString(topics[0], 32) && topics[0].toLowerCase() === eventTopic, "fragment/topic mismatch", "topics[0]", topics[0]);
+            assertArgument(isHexString$1(topics[0], 32) && topics[0].toLowerCase() === eventTopic, "fragment/topic mismatch", "topics[0]", topics[0]);
             topics = topics.slice(1);
         }
         const indexed = [];
@@ -13763,7 +13766,7 @@ class Block {
             return [];
         }
         // Make sure we prefetched the transactions
-        assert(typeof (txs[0]) === "object", "transactions were not prefetched with block request", "UNSUPPORTED_OPERATION", {
+        assert$2(typeof (txs[0]) === "object", "transactions were not prefetched with block request", "UNSUPPORTED_OPERATION", {
             operation: "transactionResponses()"
         });
         return txs;
@@ -13985,7 +13988,7 @@ class Log {
      */
     async getBlock() {
         const block = await this.provider.getBlock(this.blockHash);
-        assert(!!block, "failed to find transaction", "UNKNOWN_ERROR", {});
+        assert$2(!!block, "failed to find transaction", "UNKNOWN_ERROR", {});
         return block;
     }
     /**
@@ -13993,7 +13996,7 @@ class Log {
      */
     async getTransaction() {
         const tx = await this.provider.getTransaction(this.transactionHash);
-        assert(!!tx, "failed to find transaction", "UNKNOWN_ERROR", {});
+        assert$2(!!tx, "failed to find transaction", "UNKNOWN_ERROR", {});
         return tx;
     }
     /**
@@ -14002,7 +14005,7 @@ class Log {
      */
     async getTransactionReceipt() {
         const receipt = await this.provider.getTransactionReceipt(this.transactionHash);
-        assert(!!receipt, "failed to find transaction receipt", "UNKNOWN_ERROR", {});
+        assert$2(!!receipt, "failed to find transaction receipt", "UNKNOWN_ERROR", {});
         return receipt;
     }
     /**
@@ -14241,7 +14244,7 @@ class TransactionReceipt {
      *  @_ignore:
      */
     reorderedEvent(other) {
-        assert(!other || other.isMined(), "unmined 'other' transction cannot be orphaned", "UNSUPPORTED_OPERATION", { operation: "reorderedEvent(other)" });
+        assert$2(!other || other.isMined(), "unmined 'other' transction cannot be orphaned", "UNSUPPORTED_OPERATION", { operation: "reorderedEvent(other)" });
         return createReorderedTransactionFilter(this, other);
     }
 }
@@ -14540,7 +14543,7 @@ class TransactionResponse {
                         else if (tx.data === "0x" && tx.from === tx.to && tx.value === BN_0$2) {
                             reason = "cancelled";
                         }
-                        assert(false, "transaction was replaced", "TRANSACTION_REPLACED", {
+                        assert$2(false, "transaction was replaced", "TRANSACTION_REPLACED", {
                             cancelled: (reason === "replaced" || reason === "cancelled"),
                             reason,
                             replacement: tx.replaceableTransaction(startBlock),
@@ -14557,7 +14560,7 @@ class TransactionResponse {
             if (receipt == null || receipt.status !== 0) {
                 return receipt;
             }
-            assert(false, "transaction execution reverted", "CALL_EXCEPTION", {
+            assert$2(false, "transaction execution reverted", "CALL_EXCEPTION", {
                 action: "sendTransaction",
                 data: null, reason: null, invocation: null, revert: null,
                 transaction: {
@@ -14687,7 +14690,7 @@ class TransactionResponse {
      *  that evict this transaction.
      */
     removedEvent() {
-        assert(this.isMined(), "unmined transaction canot be orphaned", "UNSUPPORTED_OPERATION", { operation: "removeEvent()" });
+        assert$2(this.isMined(), "unmined transaction canot be orphaned", "UNSUPPORTED_OPERATION", { operation: "removeEvent()" });
         return createRemovedTransactionFilter(this);
     }
     /**
@@ -14695,8 +14698,8 @@ class TransactionResponse {
      *  that re-order this event against %%other%%.
      */
     reorderedEvent(other) {
-        assert(this.isMined(), "unmined transaction canot be orphaned", "UNSUPPORTED_OPERATION", { operation: "removeEvent()" });
-        assert(!other || other.isMined(), "unmined 'other' transaction canot be orphaned", "UNSUPPORTED_OPERATION", { operation: "removeEvent()" });
+        assert$2(this.isMined(), "unmined transaction canot be orphaned", "UNSUPPORTED_OPERATION", { operation: "removeEvent()" });
+        assert$2(!other || other.isMined(), "unmined 'other' transaction canot be orphaned", "UNSUPPORTED_OPERATION", { operation: "removeEvent()" });
         return createReorderedTransactionFilter(this, other);
     }
     /**
@@ -15051,7 +15054,7 @@ function buildWrappedFallback(contract) {
     };
     const staticCall = async function (overrides) {
         const runner = getRunner(contract.runner, "call");
-        assert(canCall(runner), "contract runner does not support calling", "UNSUPPORTED_OPERATION", { operation: "call" });
+        assert$2(canCall(runner), "contract runner does not support calling", "UNSUPPORTED_OPERATION", { operation: "call" });
         const tx = await populateTransaction(overrides);
         try {
             return await runner.call(tx);
@@ -15065,7 +15068,7 @@ function buildWrappedFallback(contract) {
     };
     const send = async function (overrides) {
         const runner = contract.runner;
-        assert(canSend(runner), "contract runner does not support sending transactions", "UNSUPPORTED_OPERATION", { operation: "sendTransaction" });
+        assert$2(canSend(runner), "contract runner does not support sending transactions", "UNSUPPORTED_OPERATION", { operation: "sendTransaction" });
         const tx = await runner.sendTransaction(await populateTransaction(overrides));
         const provider = getProvider(contract.runner);
         // @TODO: the provider can be null; make a custom dummy provider that will throw a
@@ -15074,7 +15077,7 @@ function buildWrappedFallback(contract) {
     };
     const estimateGas = async function (overrides) {
         const runner = getRunner(contract.runner, "estimateGas");
-        assert(canEstimate(runner), "contract runner does not support gas estimation", "UNSUPPORTED_OPERATION", { operation: "estimateGas" });
+        assert$2(canEstimate(runner), "contract runner does not support gas estimation", "UNSUPPORTED_OPERATION", { operation: "estimateGas" });
         return await runner.estimateGas(await populateTransaction(overrides));
     };
     const method = async (overrides) => {
@@ -15091,7 +15094,7 @@ function buildWrappedFallback(contract) {
 function buildWrappedMethod(contract, key) {
     const getFragment = function (...args) {
         const fragment = contract.interface.getFunction(key, args);
-        assert(fragment, "no matching fragment", "UNSUPPORTED_OPERATION", {
+        assert$2(fragment, "no matching fragment", "UNSUPPORTED_OPERATION", {
             operation: "fragment",
             info: { key, args }
         });
@@ -15125,7 +15128,7 @@ function buildWrappedMethod(contract, key) {
     };
     const send = async function (...args) {
         const runner = contract.runner;
-        assert(canSend(runner), "contract runner does not support sending transactions", "UNSUPPORTED_OPERATION", { operation: "sendTransaction" });
+        assert$2(canSend(runner), "contract runner does not support sending transactions", "UNSUPPORTED_OPERATION", { operation: "sendTransaction" });
         const tx = await runner.sendTransaction(await populateTransaction(...args));
         const provider = getProvider(contract.runner);
         // @TODO: the provider can be null; make a custom dummy provider that will throw a
@@ -15134,12 +15137,12 @@ function buildWrappedMethod(contract, key) {
     };
     const estimateGas = async function (...args) {
         const runner = getRunner(contract.runner, "estimateGas");
-        assert(canEstimate(runner), "contract runner does not support gas estimation", "UNSUPPORTED_OPERATION", { operation: "estimateGas" });
+        assert$2(canEstimate(runner), "contract runner does not support gas estimation", "UNSUPPORTED_OPERATION", { operation: "estimateGas" });
         return await runner.estimateGas(await populateTransaction(...args));
     };
     const staticCallResult = async function (...args) {
         const runner = getRunner(contract.runner, "call");
-        assert(canCall(runner), "contract runner does not support calling", "UNSUPPORTED_OPERATION", { operation: "call" });
+        assert$2(canCall(runner), "contract runner does not support calling", "UNSUPPORTED_OPERATION", { operation: "call" });
         const tx = await populateTransaction(...args);
         let result = "0x";
         try {
@@ -15175,7 +15178,7 @@ function buildWrappedMethod(contract, key) {
         enumerable: true,
         get: () => {
             const fragment = contract.interface.getFunction(key);
-            assert(fragment, "no matching fragment", "UNSUPPORTED_OPERATION", {
+            assert$2(fragment, "no matching fragment", "UNSUPPORTED_OPERATION", {
                 operation: "fragment",
                 info: { key }
             });
@@ -15187,7 +15190,7 @@ function buildWrappedMethod(contract, key) {
 function buildWrappedEvent(contract, key) {
     const getFragment = function (...args) {
         const fragment = contract.interface.getEvent(key, args);
-        assert(fragment, "no matching fragment", "UNSUPPORTED_OPERATION", {
+        assert$2(fragment, "no matching fragment", "UNSUPPORTED_OPERATION", {
             operation: "fragment",
             info: { key, args }
         });
@@ -15207,7 +15210,7 @@ function buildWrappedEvent(contract, key) {
         enumerable: true,
         get: () => {
             const fragment = contract.interface.getEvent(key);
-            assert(fragment, "no matching fragment", "UNSUPPORTED_OPERATION", {
+            assert$2(fragment, "no matching fragment", "UNSUPPORTED_OPERATION", {
                 operation: "fragment",
                 info: { key }
             });
@@ -15239,7 +15242,7 @@ async function getSubInfo(contract, event) {
     // events which need deconstructing.
     if (Array.isArray(event)) {
         const topicHashify = function (name) {
-            if (isHexString(name, 32)) {
+            if (isHexString$1(name, 32)) {
                 return name;
             }
             const fragment = contract.interface.getEvent(name);
@@ -15261,7 +15264,7 @@ async function getSubInfo(contract, event) {
         topics = [null];
     }
     else if (typeof (event) === "string") {
-        if (isHexString(event, 32)) {
+        if (isHexString$1(event, 32)) {
             // Topic Hash
             topics = [event];
         }
@@ -15317,7 +15320,7 @@ async function hasSub(contract, event) {
 async function getSub(contract, operation, event) {
     // Make sure our runner can actually subscribe to events
     const provider = getProvider(contract.runner);
-    assert(provider, "contract runner does not support subscribing", "UNSUPPORTED_OPERATION", { operation });
+    assert$2(provider, "contract runner does not support subscribing", "UNSUPPORTED_OPERATION", { operation });
     const { fragment, tag, topics } = await getSubInfo(contract, event);
     const { addr, subs } = getInternal(contract);
     let sub = subs.get(tag);
@@ -15463,7 +15466,7 @@ class BaseContract {
         let subs = new Map();
         // Resolve the target as the address
         if (typeof (target) === "string") {
-            if (isHexString(target)) {
+            if (isHexString$1(target)) {
                 addr = target;
                 addrPromise = Promise.resolve(target);
             }
@@ -15573,7 +15576,7 @@ class BaseContract {
      */
     async getDeployedCode() {
         const provider = getProvider(this.runner);
-        assert(provider, "runner does not support .provider", "UNSUPPORTED_OPERATION", { operation: "getDeployedCode" });
+        assert$2(provider, "runner does not support .provider", "UNSUPPORTED_OPERATION", { operation: "getDeployedCode" });
         const code = await provider.getCode(await this.getAddress());
         if (code === "0x") {
             return null;
@@ -15598,7 +15601,7 @@ class BaseContract {
         }
         // Make sure we can subscribe to a provider event
         const provider = getProvider(this.runner);
-        assert(provider != null, "contract runner does not support .provider", "UNSUPPORTED_OPERATION", { operation: "waitForDeployment" });
+        assert$2(provider != null, "contract runner does not support .provider", "UNSUPPORTED_OPERATION", { operation: "waitForDeployment" });
         return new Promise((resolve, reject) => {
             const checkCode = async () => {
                 try {
@@ -15685,7 +15688,7 @@ class BaseContract {
         const { fragment, topics } = await getSubInfo(this, event);
         const filter = { address, topics, fromBlock, toBlock };
         const provider = getProvider(this.runner);
-        assert(provider, "contract runner does not have a provider", "UNSUPPORTED_OPERATION", { operation: "queryFilter" });
+        assert$2(provider, "contract runner does not have a provider", "UNSUPPORTED_OPERATION", { operation: "queryFilter" });
         return (await provider.getLogs(filter)).map((log) => {
             let foundFragment = fragment;
             if (foundFragment == null) {
@@ -15931,7 +15934,7 @@ class ContractFactory {
      */
     async deploy(...args) {
         const tx = await this.getDeployTransaction(...args);
-        assert(this.runner && typeof (this.runner.sendTransaction) === "function", "factory runner does not support sending transactions", "UNSUPPORTED_OPERATION", {
+        assert$2(this.runner && typeof (this.runner.sendTransaction) === "function", "factory runner does not support sending transactions", "UNSUPPORTED_OPERATION", {
             operation: "sendTransaction"
         });
         const sentTx = await this.runner.sendTransaction(tx);
@@ -16091,7 +16094,7 @@ class EnsResolver {
         let fragment = null;
         if (await this.supportsWildcard()) {
             fragment = iface.getFunction(funcName);
-            assert(fragment, "missing fragment", "UNKNOWN_ERROR", {
+            assert$2(fragment, "missing fragment", "UNKNOWN_ERROR", {
                 info: { funcName }
             });
             params = [
@@ -16145,7 +16148,7 @@ class EnsResolver {
         if (coinType >= 0 && coinType < 0x80000000) {
             let ethCoinType = coinType + 0x80000000;
             const data = await this.#fetch("addr(bytes32,uint)", [ethCoinType]);
-            if (isHexString(data, 20)) {
+            if (isHexString$1(data, 20)) {
                 return getAddress(data);
             }
         }
@@ -16173,7 +16176,7 @@ class EnsResolver {
         if (address != null) {
             return address;
         }
-        assert(false, `invalid coin data`, "UNSUPPORTED_OPERATION", {
+        assert$2(false, `invalid coin data`, "UNSUPPORTED_OPERATION", {
             operation: `getAddress(${coinType})`,
             info: { coinType, data }
         });
@@ -16213,7 +16216,7 @@ class EnsResolver {
         if (swarm && swarm[1].length === 64) {
             return `bzz:/\/${swarm[1]}`;
         }
-        assert(false, `invalid or unsupported content hash data`, "UNSUPPORTED_OPERATION", {
+        assert$2(false, `invalid or unsupported content hash data`, "UNSUPPORTED_OPERATION", {
             operation: "getContentHash()",
             info: { data }
         });
@@ -16382,7 +16385,7 @@ class EnsResolver {
         const network = await provider.getNetwork();
         const ensPlugin = network.getPlugin("org.ethers.plugins.network.Ens");
         // No ENS...
-        assert(ensPlugin, "network does not support ENS", "UNSUPPORTED_OPERATION", {
+        assert$2(ensPlugin, "network does not support ENS", "UNSUPPORTED_OPERATION", {
             operation: "getEnsAddress", info: { network }
         });
         return ensPlugin.address;
@@ -16484,7 +16487,7 @@ function object(format, altNames) {
             }
             catch (error) {
                 const message = (error instanceof Error) ? error.message : "not-an-error";
-                assert(false, `invalid value for value.${key} (${message})`, "BAD_DATA", { value });
+                assert$2(false, `invalid value for value.${key} (${message})`, "BAD_DATA", { value });
             }
         }
         return result;
@@ -16502,11 +16505,11 @@ function formatBoolean(value) {
     assertArgument(false, `invalid boolean; ${JSON.stringify(value)}`, "value", value);
 }
 function formatData(value) {
-    assertArgument(isHexString(value, true), "invalid data", "value", value);
+    assertArgument(isHexString$1(value, true), "invalid data", "value", value);
     return value;
 }
 function formatHash(value) {
-    assertArgument(isHexString(value, 32), "invalid hash", "value", value);
+    assertArgument(isHexString$1(value, 32), "invalid hash", "value", value);
     return value;
 }
 const _formatLog = object({
@@ -17176,7 +17179,7 @@ function getGasStationPlugin(url) {
             return feeData;
         }
         catch (error) {
-            assert(false, `error encountered with polygon gas station (${JSON.stringify(request.url)})`, "SERVER_ERROR", { request, response, error });
+            assert$2(false, `error encountered with polygon gas station (${JSON.stringify(request.url)})`, "SERVER_ERROR", { request, response, error });
         }
     });
 }
@@ -17601,7 +17604,7 @@ async function getSubscription(_event, provider) {
             }
         }
     }
-    if (isHexString(_event, 32)) {
+    if (isHexString$1(_event, 32)) {
         const hash = _event.toLowerCase();
         return { type: "transaction", tag: getTag("tx", { hash }), hash };
     }
@@ -17627,7 +17630,7 @@ async function getSubscription(_event, provider) {
             const addresses = [];
             const promises = [];
             const addAddress = (addr) => {
-                if (isHexString(addr)) {
+                if (isHexString$1(addr)) {
                     addresses.push(addr);
                 }
                 else {
@@ -17803,11 +17806,11 @@ class AbstractProvider {
             }
             catch (error) { }
             // 4xx indicates the result is not present; stop
-            assert(resp.statusCode < 400 || resp.statusCode >= 500, `response not found during CCIP fetch: ${errorMessage}`, "OFFCHAIN_FAULT", { reason: "404_MISSING_RESOURCE", transaction: tx, info: { url, errorMessage } });
+            assert$2(resp.statusCode < 400 || resp.statusCode >= 500, `response not found during CCIP fetch: ${errorMessage}`, "OFFCHAIN_FAULT", { reason: "404_MISSING_RESOURCE", transaction: tx, info: { url, errorMessage } });
             // 5xx indicates server issue; try the next url
             errorMessages.push(errorMessage);
         }
-        assert(false, `error encountered during CCIP fetch: ${errorMessages.map((m) => JSON.stringify(m)).join(", ")}`, "OFFCHAIN_FAULT", {
+        assert$2(false, `error encountered during CCIP fetch: ${errorMessages.map((m) => JSON.stringify(m)).join(", ")}`, "OFFCHAIN_FAULT", {
             reason: "500_SERVER_ERROR",
             transaction: tx, info: { urls, errorMessages }
         });
@@ -17851,7 +17854,7 @@ class AbstractProvider {
      *  Sub-classes **must** override this.
      */
     _detectNetwork() {
-        assert(false, "sub-classes must implement this", "UNSUPPORTED_OPERATION", {
+        assert$2(false, "sub-classes must implement this", "UNSUPPORTED_OPERATION", {
             operation: "_detectNetwork"
         });
     }
@@ -17862,7 +17865,7 @@ class AbstractProvider {
      *  Sub-classes **must** override this.
      */
     async _perform(req) {
-        assert(false, `unsupported method: ${req.method}`, "UNSUPPORTED_OPERATION", {
+        assert$2(false, `unsupported method: ${req.method}`, "UNSUPPORTED_OPERATION", {
             operation: req.method,
             info: req
         });
@@ -17900,8 +17903,8 @@ class AbstractProvider {
             case "finalized":
                 return blockTag;
         }
-        if (isHexString(blockTag)) {
-            if (isHexString(blockTag, 32)) {
+        if (isHexString$1(blockTag)) {
+            if (isHexString$1(blockTag, 32)) {
                 return blockTag;
             }
             return toQuantity(blockTag);
@@ -18070,7 +18073,7 @@ class AbstractProvider {
             }
             else {
                 // Otherwise, we do not allow changes to the underlying network
-                assert(false, `network changed: ${expected.chainId} => ${actual.chainId} `, "NETWORK_ERROR", {
+                assert$2(false, `network changed: ${expected.chainId} => ${actual.chainId} `, "NETWORK_ERROR", {
                     event: "changed"
                 });
             }
@@ -18120,7 +18123,7 @@ class AbstractProvider {
         }), "%response");
     }
     async #call(tx, blockTag, attempt) {
-        assert(attempt < MAX_CCIP_REDIRECTS, "CCIP read exceeded maximum redirections", "OFFCHAIN_FAULT", {
+        assert$2(attempt < MAX_CCIP_REDIRECTS, "CCIP read exceeded maximum redirections", "OFFCHAIN_FAULT", {
             reason: "TOO_MANY_REDIRECTS",
             transaction: Object.assign({}, tx, { blockTag, enableCcipRead: true })
         });
@@ -18140,12 +18143,12 @@ class AbstractProvider {
                     ccipArgs = parseOffchainLookup(dataSlice(error.data, 4));
                 }
                 catch (error) {
-                    assert(false, error.message, "OFFCHAIN_FAULT", {
+                    assert$2(false, error.message, "OFFCHAIN_FAULT", {
                         reason: "BAD_DATA", transaction, info: { data }
                     });
                 }
                 // Check the sender of the OffchainLookup matches the transaction
-                assert(ccipArgs.sender.toLowerCase() === txSender.toLowerCase(), "CCIP Read sender mismatch", "CALL_EXCEPTION", {
+                assert$2(ccipArgs.sender.toLowerCase() === txSender.toLowerCase(), "CCIP Read sender mismatch", "CALL_EXCEPTION", {
                     action: "call",
                     data,
                     reason: "OffchainLookup",
@@ -18158,7 +18161,7 @@ class AbstractProvider {
                     }
                 });
                 const ccipResult = await this.ccipReadFetch(transaction, ccipArgs.calldata, ccipArgs.urls);
-                assert(ccipResult != null, "CCIP Read failed to fetch data", "OFFCHAIN_FAULT", {
+                assert$2(ccipResult != null, "CCIP Read failed to fetch data", "OFFCHAIN_FAULT", {
                     reason: "FETCH_FAILED", transaction, info: { data: error.data, errorArgs: ccipArgs.errorArgs }
                 });
                 const tx = {
@@ -18233,7 +18236,7 @@ class AbstractProvider {
     }
     async #getBlock(block, includeTransactions) {
         // @TODO: Add CustomBlockPlugin check
-        if (isHexString(block, 32)) {
+        if (isHexString$1(block, 32)) {
             return await this.#perform({
                 method: "getBlock", blockHash: block, includeTransactions
             });
@@ -18310,7 +18313,7 @@ class AbstractProvider {
     }
     // ENS
     _getProvider(chainId) {
-        assert(false, "provider cannot connect to target network", "UNSUPPORTED_OPERATION", {
+        assert$2(false, "provider cannot connect to target network", "UNSUPPORTED_OPERATION", {
             operation: "_getProvider()"
         });
     }
@@ -18408,7 +18411,7 @@ class AbstractProvider {
         });
     }
     async waitForBlock(blockTag) {
-        assert(false, "not implemented yet", "NOT_IMPLEMENTED", {
+        assert$2(false, "not implemented yet", "NOT_IMPLEMENTED", {
             operation: "waitForBlock"
         });
     }
@@ -18712,7 +18715,7 @@ class AbstractProvider {
             if (this.#pausedState == !!dropWhilePaused) {
                 return;
             }
-            assert(false, "cannot change pause type; resume first", "UNSUPPORTED_OPERATION", {
+            assert$2(false, "cannot change pause type; resume first", "UNSUPPORTED_OPERATION", {
                 operation: "pause"
             });
         }
@@ -18814,11 +18817,11 @@ function parseOffchainLookup(data) {
     const result = {
         sender: "", urls: [], calldata: "", selector: "", extraData: "", errorArgs: []
     };
-    assert(dataLength(data) >= 5 * 32, "insufficient OffchainLookup data", "OFFCHAIN_FAULT", {
+    assert$2(dataLength(data) >= 5 * 32, "insufficient OffchainLookup data", "OFFCHAIN_FAULT", {
         reason: "insufficient OffchainLookup data"
     });
     const sender = dataSlice(data, 0, 32);
-    assert(dataSlice(sender, 0, 12) === dataSlice(zeros, 0, 12), "corrupt OffchainLookup sender", "OFFCHAIN_FAULT", {
+    assert$2(dataSlice(sender, 0, 12) === dataSlice(zeros, 0, 12), "corrupt OffchainLookup sender", "OFFCHAIN_FAULT", {
         reason: "corrupt OffchainLookup sender"
     });
     result.sender = dataSlice(sender, 12);
@@ -18838,7 +18841,7 @@ function parseOffchainLookup(data) {
         result.urls = urls;
     }
     catch (error) {
-        assert(false, "corrupt OffchainLookup urls", "OFFCHAIN_FAULT", {
+        assert$2(false, "corrupt OffchainLookup urls", "OFFCHAIN_FAULT", {
             reason: "corrupt OffchainLookup urls"
         });
     }
@@ -18851,12 +18854,12 @@ function parseOffchainLookup(data) {
         result.calldata = calldata;
     }
     catch (error) {
-        assert(false, "corrupt OffchainLookup calldata", "OFFCHAIN_FAULT", {
+        assert$2(false, "corrupt OffchainLookup calldata", "OFFCHAIN_FAULT", {
             reason: "corrupt OffchainLookup calldata"
         });
     }
     // Get the callbackSelector (bytes4)
-    assert(dataSlice(data, 100, 128) === dataSlice(zeros, 0, 28), "corrupt OffchainLookup callbaackSelector", "OFFCHAIN_FAULT", {
+    assert$2(dataSlice(data, 100, 128) === dataSlice(zeros, 0, 28), "corrupt OffchainLookup callbaackSelector", "OFFCHAIN_FAULT", {
         reason: "corrupt OffchainLookup callbaackSelector"
     });
     result.selector = dataSlice(data, 96, 100);
@@ -18869,7 +18872,7 @@ function parseOffchainLookup(data) {
         result.extraData = extraData;
     }
     catch (error) {
-        assert(false, "corrupt OffchainLookup extraData", "OFFCHAIN_FAULT", {
+        assert$2(false, "corrupt OffchainLookup extraData", "OFFCHAIN_FAULT", {
             reason: "corrupt OffchainLookup extraData"
         });
     }
@@ -18888,7 +18891,7 @@ function checkProvider(signer, operation) {
     if (signer.provider) {
         return signer.provider;
     }
-    assert(false, "missing provider", "UNSUPPORTED_OPERATION", { operation });
+    assert$2(false, "missing provider", "UNSUPPORTED_OPERATION", { operation });
 }
 async function populate(signer, tx) {
     let pop = copyRequest(tx);
@@ -18968,7 +18971,7 @@ class AbstractSigner {
             // Explicit Legacy or EIP-2930 transaction
             // We need to get fee data to determine things
             const feeData = await provider.getFeeData();
-            assert(feeData.gasPrice != null, "network does not support gasPrice", "UNSUPPORTED_OPERATION", {
+            assert$2(feeData.gasPrice != null, "network does not support gasPrice", "UNSUPPORTED_OPERATION", {
                 operation: "getGasPrice"
             });
             // Populate missing gasPrice
@@ -19006,7 +19009,7 @@ class AbstractSigner {
                 else if (feeData.gasPrice != null) {
                     // Network doesn't support EIP-1559...
                     // ...but they are trying to use EIP-1559 properties
-                    assert(!hasEip1559, "network does not support EIP-1559", "UNSUPPORTED_OPERATION", {
+                    assert$2(!hasEip1559, "network does not support EIP-1559", "UNSUPPORTED_OPERATION", {
                         operation: "populateTransaction"
                     });
                     // Populate missing fee data
@@ -19019,7 +19022,7 @@ class AbstractSigner {
                 }
                 else {
                     // getFeeData has failed us.
-                    assert(false, "failed to get consistent fee data", "UNSUPPORTED_OPERATION", {
+                    assert$2(false, "failed to get consistent fee data", "UNSUPPORTED_OPERATION", {
                         operation: "signer.getFeeData"
                     });
                 }
@@ -19083,7 +19086,7 @@ class VoidSigner extends AbstractSigner {
         return new VoidSigner(this.address, provider);
     }
     #throwUnsupported(suffix, operation) {
-        assert(false, `VoidSigner cannot sign ${suffix}`, "UNSUPPORTED_OPERATION", { operation });
+        assert$2(false, `VoidSigner cannot sign ${suffix}`, "UNSUPPORTED_OPERATION", { operation });
     }
     async signTransaction(tx) {
         this.#throwUnsupported("transactions", "signTransaction");
@@ -19366,7 +19369,7 @@ class JsonRpcSigner extends AbstractSigner {
         defineProperties(this, { address });
     }
     connect(provider) {
-        assert(false, "cannot reconnect JsonRpcSigner", "UNSUPPORTED_OPERATION", {
+        assert$2(false, "cannot reconnect JsonRpcSigner", "UNSUPPORTED_OPERATION", {
             operation: "signer.connect"
         });
     }
@@ -19606,7 +19609,7 @@ class JsonRpcApiProvider extends AbstractProvider {
      *  is detected, and if it has changed, the call will reject.
      */
     get _network() {
-        assert(this.#network, "network is not available yet", "NETWORK_ERROR");
+        assert$2(this.#network, "network is not available yet", "NETWORK_ERROR");
         return this.#network;
     }
     /**
@@ -20114,7 +20117,7 @@ function spelunkData(value) {
         return null;
     }
     // These *are* the droids we're looking for.
-    if (typeof (value.message) === "string" && value.message.match(/revert/i) && isHexString(value.data)) {
+    if (typeof (value.message) === "string" && value.message.match(/revert/i) && isHexString$1(value.data)) {
         return { message: value.message, data: value.data };
     }
     // Spelunk further...
@@ -20342,7 +20345,7 @@ class AlchemyProvider extends JsonRpcProvider {
             }
             catch (error) { }
             if (data) {
-                assert(!error, "an error occurred during transaction executions", "CALL_EXCEPTION", {
+                assert$2(!error, "an error occurred during transaction executions", "CALL_EXCEPTION", {
                     action: "getTransactionResult",
                     data,
                     reason: null,
@@ -20352,7 +20355,7 @@ class AlchemyProvider extends JsonRpcProvider {
                 });
                 return data;
             }
-            assert(false, "could not parse trace result", "BAD_DATA", { value: trace });
+            assert$2(false, "could not parse trace result", "BAD_DATA", { value: trace });
         }
         return await super._perform(req);
     }
@@ -20589,21 +20592,21 @@ class EtherscanProvider extends AbstractProvider {
         }
         catch (error) {
             this.emit("debug", { action: "receiveError", id, error, reason: "assertOk" });
-            assert(false, "response error", "SERVER_ERROR", { request, response });
+            assert$2(false, "response error", "SERVER_ERROR", { request, response });
         }
         if (!response.hasBody()) {
             this.emit("debug", { action: "receiveError", id, error: "missing body", reason: "null body" });
-            assert(false, "missing response", "SERVER_ERROR", { request, response });
+            assert$2(false, "missing response", "SERVER_ERROR", { request, response });
         }
         const result = JSON.parse(toUtf8String(response.body));
         if (module === "proxy") {
             if (result.jsonrpc != "2.0") {
                 this.emit("debug", { action: "receiveError", id, result, reason: "invalid JSON-RPC" });
-                assert(false, "invalid JSON-RPC response (missing jsonrpc='2.0')", "SERVER_ERROR", { request, response, info: { result } });
+                assert$2(false, "invalid JSON-RPC response (missing jsonrpc='2.0')", "SERVER_ERROR", { request, response, info: { result } });
             }
             if (result.error) {
                 this.emit("debug", { action: "receiveError", id, result, reason: "JSON-RPC error" });
-                assert(false, "error response", "SERVER_ERROR", { request, response, info: { result } });
+                assert$2(false, "error response", "SERVER_ERROR", { request, response, info: { result } });
             }
             this.emit("debug", { action: "receiveRequest", id, result });
             return result.result;
@@ -20616,7 +20619,7 @@ class EtherscanProvider extends AbstractProvider {
             }
             if (result.status != 1 || (typeof (result.message) === "string" && !result.message.match(/^OK/))) {
                 this.emit("debug", { action: "receiveError", id, result });
-                assert(false, "error response", "SERVER_ERROR", { request, response, info: { result } });
+                assert$2(false, "error response", "SERVER_ERROR", { request, response, info: { result } });
             }
             this.emit("debug", { action: "receiveRequest", id, result });
             return result.result;
@@ -20678,7 +20681,7 @@ class EtherscanProvider extends AbstractProvider {
         }
         if (req.method === "estimateGas") {
             if (!message.match(/revert/i) && message.match(/insufficient funds/i)) {
-                assert(false, "insufficient funds", "INSUFFICIENT_FUNDS", {
+                assert$2(false, "insufficient funds", "INSUFFICIENT_FUNDS", {
                     transaction: req.transaction
                 });
             }
@@ -20699,17 +20702,17 @@ class EtherscanProvider extends AbstractProvider {
             if (req.method === "broadcastTransaction") {
                 const transaction = Transaction.from(req.signedTransaction);
                 if (message.match(/replacement/i) && message.match(/underpriced/i)) {
-                    assert(false, "replacement fee too low", "REPLACEMENT_UNDERPRICED", {
+                    assert$2(false, "replacement fee too low", "REPLACEMENT_UNDERPRICED", {
                         transaction
                     });
                 }
                 if (message.match(/insufficient funds/)) {
-                    assert(false, "insufficient funds for intrinsic transaction cost", "INSUFFICIENT_FUNDS", {
+                    assert$2(false, "insufficient funds for intrinsic transaction cost", "INSUFFICIENT_FUNDS", {
                         transaction
                     });
                 }
                 if (message.match(/same hash was already imported|transaction nonce is too low|nonce too low/)) {
-                    assert(false, "nonce has already been used", "NONCE_EXPIRED", {
+                    assert$2(false, "nonce has already been used", "NONCE_EXPIRED", {
                         transaction
                     });
                 }
@@ -20770,7 +20773,7 @@ class EtherscanProvider extends AbstractProvider {
                         boolean: (req.includeTransactions ? "true" : "false")
                     });
                 }
-                assert(false, "getBlock by blockHash not supported by Etherscan", "UNSUPPORTED_OPERATION", {
+                assert$2(false, "getBlock by blockHash not supported by Etherscan", "UNSUPPORTED_OPERATION", {
                     operation: "getBlock(blockHash)"
                 });
             case "getTransaction":
@@ -20914,7 +20917,7 @@ class SocketSubscriber {
     // @TODO: pause should trap the current blockNumber, unsub, and on resume use getLogs
     //        and resume
     pause(dropWhilePaused) {
-        assert(dropWhilePaused, "preserve logs while paused not supported by SocketSubscriber yet", "UNSUPPORTED_OPERATION", { operation: "pause(false)" });
+        assert$2(dropWhilePaused, "preserve logs while paused not supported by SocketSubscriber yet", "UNSUPPORTED_OPERATION", { operation: "pause(false)" });
         this.#paused = !!dropWhilePaused;
     }
     resume() {
@@ -21292,7 +21295,7 @@ class InfuraWebSocketProvider extends WebSocketProvider {
     constructor(network, projectId) {
         const provider = new InfuraProvider(network, projectId);
         const req = provider._getConnection();
-        assert(!req.credentials, "INFURA WebSocket project secrets unsupported", "UNSUPPORTED_OPERATION", { operation: "InfuraProvider.getWebSocketProvider()" });
+        assert$2(!req.credentials, "INFURA WebSocket project secrets unsupported", "UNSUPPORTED_OPERATION", { operation: "InfuraProvider.getWebSocketProvider()" });
         const url = req.url.replace(/^http/i, "ws").replace("/v3/", "/ws/v3/");
         super(url, network);
         defineProperties(this, {
@@ -21883,7 +21886,7 @@ class FallbackProvider extends AbstractProvider {
                         chainId = network.chainId;
                     }
                     else if (network.chainId !== chainId) {
-                        assert(false, "cannot mix providers on different networks", "UNSUPPORTED_OPERATION", {
+                        assert$2(false, "cannot mix providers on different networks", "UNSUPPORTED_OPERATION", {
                             operation: "new FallbackProvider"
                         });
                     }
@@ -21949,7 +21952,7 @@ class FallbackProvider extends AbstractProvider {
             case "broadcastTransaction":
                 return getAnyResult(this.quorum, results);
         }
-        assert(false, "unsupported method", "UNSUPPORTED_OPERATION", {
+        assert$2(false, "unsupported method", "UNSUPPORTED_OPERATION", {
             operation: `_perform(${stringify(req.method)})`
         });
     }
@@ -21993,7 +21996,7 @@ class FallbackProvider extends AbstractProvider {
             this.#addRunner(running, req);
         }
         // All providers have returned, and we have no result
-        assert(interesting.length > 0, "quorum not met", "SERVER_ERROR", {
+        assert$2(interesting.length > 0, "quorum not met", "SERVER_ERROR", {
             request: "%sub-requests",
             info: { request: req, results: Array.from(running).map((r) => stringify(r.result)) }
         });
@@ -22018,7 +22021,7 @@ class FallbackProvider extends AbstractProvider {
                 }
             }));
             const result = getAnyResult(this.quorum, results);
-            assert(result !== undefined, "problem multi-broadcasting", "SERVER_ERROR", {
+            assert$2(result !== undefined, "problem multi-broadcasting", "SERVER_ERROR", {
                 request: "%sub-requests",
                 info: { request: req, results: results.map(stringify) }
             });
@@ -22191,7 +22194,7 @@ function getDefaultProvider(network, options) {
         }
         catch (error) { }
     }
-    assert(providers.length, "unsupported default network", "UNSUPPORTED_OPERATION", {
+    assert$2(providers.length, "unsupported default network", "UNSUPPORTED_OPERATION", {
         operation: "getDefaultProvider"
     });
     // No need for a FallbackProvider
@@ -22484,6 +22487,6938 @@ class PocketProvider extends JsonRpcProvider {
     }
 }
 
+function number(n) {
+    if (!Number.isSafeInteger(n) || n < 0)
+        throw new Error(`positive integer expected, not ${n}`);
+}
+function bool(b) {
+    if (typeof b !== 'boolean')
+        throw new Error(`boolean expected, not ${b}`);
+}
+// copied from utils
+function isBytes$1(a) {
+    return (a instanceof Uint8Array ||
+        (a != null && typeof a === 'object' && a.constructor.name === 'Uint8Array'));
+}
+function bytes(b, ...lengths) {
+    if (!isBytes$1(b))
+        throw new Error('Uint8Array expected');
+    if (lengths.length > 0 && !lengths.includes(b.length))
+        throw new Error(`Uint8Array expected of length ${lengths}, not of length=${b.length}`);
+}
+function hash(h) {
+    if (typeof h !== 'function' || typeof h.create !== 'function')
+        throw new Error('Hash should be wrapped by utils.wrapConstructor');
+    number(h.outputLen);
+    number(h.blockLen);
+}
+function exists(instance, checkFinished = true) {
+    if (instance.destroyed)
+        throw new Error('Hash instance has been destroyed');
+    if (checkFinished && instance.finished)
+        throw new Error('Hash#digest() has already been called');
+}
+function output(out, instance) {
+    bytes(out);
+    const min = instance.outputLen;
+    if (out.length < min) {
+        throw new Error(`digestInto() expects output buffer of length at least ${min}`);
+    }
+}
+const assert = { number, bool, bytes, hash, exists, output };
+var assert$1 = assert;
+
+const crypto = typeof globalThis === 'object' && 'crypto' in globalThis ? globalThis.crypto : undefined;
+
+/*! noble-hashes - MIT License (c) 2022 Paul Miller (paulmillr.com) */
+// We use WebCrypto aka globalThis.crypto, which exists in browsers and node.js 16+.
+// node.js versions earlier than v19 don't declare it in global scope.
+// For node.js, package.json#exports field mapping rewrites import
+// from `crypto` to `cryptoNode`, which imports native module.
+// Makes the utils un-importable in browsers without a bundler.
+// Once node.js 18 is deprecated (2025-04-30), we can just drop the import.
+const u32 = (arr) => new Uint32Array(arr.buffer, arr.byteOffset, Math.floor(arr.byteLength / 4));
+// Cast array to view
+const createView = (arr) => new DataView(arr.buffer, arr.byteOffset, arr.byteLength);
+// The rotate right (circular right shift) operation for uint32
+const rotr = (word, shift) => (word << (32 - shift)) | (word >>> shift);
+const isLE = new Uint8Array(new Uint32Array([0x11223344]).buffer)[0] === 0x44;
+// The byte swap operation for uint32
+const byteSwap = (word) => ((word << 24) & 0xff000000) |
+    ((word << 8) & 0xff0000) |
+    ((word >>> 8) & 0xff00) |
+    ((word >>> 24) & 0xff);
+// In place byte swap for Uint32Array
+function byteSwap32(arr) {
+    for (let i = 0; i < arr.length; i++) {
+        arr[i] = byteSwap(arr[i]);
+    }
+}
+// Array where index 0xf0 (240) is mapped to string 'f0'
+const hexes$1 = /* @__PURE__ */ Array.from({ length: 256 }, (_, i) => i.toString(16).padStart(2, '0'));
+/**
+ * @example bytesToHex(Uint8Array.from([0xca, 0xfe, 0x01, 0x23])) // 'cafe0123'
+ */
+function bytesToHex$3(bytes$1) {
+    bytes(bytes$1);
+    // pre-caching improves the speed 6x
+    let hex = '';
+    for (let i = 0; i < bytes$1.length; i++) {
+        hex += hexes$1[bytes$1[i]];
+    }
+    return hex;
+}
+/**
+ * @example utf8ToBytes('abc') // new Uint8Array([97, 98, 99])
+ */
+function utf8ToBytes$2(str) {
+    if (typeof str !== 'string')
+        throw new Error(`utf8ToBytes expected string, got ${typeof str}`);
+    return new Uint8Array(new TextEncoder().encode(str)); // https://bugzil.la/1681809
+}
+/**
+ * Normalizes (non-hex) string or Uint8Array to Uint8Array.
+ * Warning: when Uint8Array is passed, it would NOT get copied.
+ * Keep in mind for future mutable operations.
+ */
+function toBytes$2(data) {
+    if (typeof data === 'string')
+        data = utf8ToBytes$2(data);
+    bytes(data);
+    return data;
+}
+/**
+ * Copies several Uint8Arrays into one.
+ */
+function concatBytes$3(...arrays) {
+    let sum = 0;
+    for (let i = 0; i < arrays.length; i++) {
+        const a = arrays[i];
+        bytes(a);
+        sum += a.length;
+    }
+    const res = new Uint8Array(sum);
+    for (let i = 0, pad = 0; i < arrays.length; i++) {
+        const a = arrays[i];
+        res.set(a, pad);
+        pad += a.length;
+    }
+    return res;
+}
+// For runtime check if class implements interface
+class Hash {
+    // Safe version that clones internal state
+    clone() {
+        return this._cloneInto();
+    }
+}
+function wrapConstructor(hashCons) {
+    const hashC = (msg) => hashCons().update(toBytes$2(msg)).digest();
+    const tmp = hashCons();
+    hashC.outputLen = tmp.outputLen;
+    hashC.blockLen = tmp.blockLen;
+    hashC.create = () => hashCons();
+    return hashC;
+}
+/**
+ * Secure PRNG. Uses `crypto.getRandomValues`, which defers to OS.
+ */
+function randomBytes(bytesLength = 32) {
+    if (crypto && typeof crypto.getRandomValues === 'function') {
+        return crypto.getRandomValues(new Uint8Array(bytesLength));
+    }
+    throw new Error('crypto.getRandomValues must be defined');
+}
+
+// Polyfill for Safari 14
+function setBigUint64(view, byteOffset, value, isLE) {
+    if (typeof view.setBigUint64 === 'function')
+        return view.setBigUint64(byteOffset, value, isLE);
+    const _32n = BigInt(32);
+    const _u32_max = BigInt(0xffffffff);
+    const wh = Number((value >> _32n) & _u32_max);
+    const wl = Number(value & _u32_max);
+    const h = isLE ? 4 : 0;
+    const l = isLE ? 0 : 4;
+    view.setUint32(byteOffset + h, wh, isLE);
+    view.setUint32(byteOffset + l, wl, isLE);
+}
+// Choice: a ? b : c
+const Chi = (a, b, c) => (a & b) ^ (~a & c);
+// Majority function, true if any two inpust is true
+const Maj = (a, b, c) => (a & b) ^ (a & c) ^ (b & c);
+/**
+ * Merkle-Damgard hash construction base class.
+ * Could be used to create MD5, RIPEMD, SHA1, SHA2.
+ */
+class HashMD extends Hash {
+    constructor(blockLen, outputLen, padOffset, isLE) {
+        super();
+        this.blockLen = blockLen;
+        this.outputLen = outputLen;
+        this.padOffset = padOffset;
+        this.isLE = isLE;
+        this.finished = false;
+        this.length = 0;
+        this.pos = 0;
+        this.destroyed = false;
+        this.buffer = new Uint8Array(blockLen);
+        this.view = createView(this.buffer);
+    }
+    update(data) {
+        exists(this);
+        const { view, buffer, blockLen } = this;
+        data = toBytes$2(data);
+        const len = data.length;
+        for (let pos = 0; pos < len;) {
+            const take = Math.min(blockLen - this.pos, len - pos);
+            // Fast path: we have at least one block in input, cast it to view and process
+            if (take === blockLen) {
+                const dataView = createView(data);
+                for (; blockLen <= len - pos; pos += blockLen)
+                    this.process(dataView, pos);
+                continue;
+            }
+            buffer.set(data.subarray(pos, pos + take), this.pos);
+            this.pos += take;
+            pos += take;
+            if (this.pos === blockLen) {
+                this.process(view, 0);
+                this.pos = 0;
+            }
+        }
+        this.length += data.length;
+        this.roundClean();
+        return this;
+    }
+    digestInto(out) {
+        exists(this);
+        output(out, this);
+        this.finished = true;
+        // Padding
+        // We can avoid allocation of buffer for padding completely if it
+        // was previously not allocated here. But it won't change performance.
+        const { buffer, view, blockLen, isLE } = this;
+        let { pos } = this;
+        // append the bit '1' to the message
+        buffer[pos++] = 0b10000000;
+        this.buffer.subarray(pos).fill(0);
+        // we have less than padOffset left in buffer, so we cannot put length in
+        // current block, need process it and pad again
+        if (this.padOffset > blockLen - pos) {
+            this.process(view, 0);
+            pos = 0;
+        }
+        // Pad until full block byte with zeros
+        for (let i = pos; i < blockLen; i++)
+            buffer[i] = 0;
+        // Note: sha512 requires length to be 128bit integer, but length in JS will overflow before that
+        // You need to write around 2 exabytes (u64_max / 8 / (1024**6)) for this to happen.
+        // So we just write lowest 64 bits of that value.
+        setBigUint64(view, blockLen - 8, BigInt(this.length * 8), isLE);
+        this.process(view, 0);
+        const oview = createView(out);
+        const len = this.outputLen;
+        // NOTE: we do division by 4 later, which should be fused in single op with modulo by JIT
+        if (len % 4)
+            throw new Error('_sha2: outputLen should be aligned to 32bit');
+        const outLen = len / 4;
+        const state = this.get();
+        if (outLen > state.length)
+            throw new Error('_sha2: outputLen bigger than state');
+        for (let i = 0; i < outLen; i++)
+            oview.setUint32(4 * i, state[i], isLE);
+    }
+    digest() {
+        const { buffer, outputLen } = this;
+        this.digestInto(buffer);
+        const res = buffer.slice(0, outputLen);
+        this.destroy();
+        return res;
+    }
+    _cloneInto(to) {
+        to || (to = new this.constructor());
+        to.set(...this.get());
+        const { blockLen, buffer, length, finished, destroyed, pos } = this;
+        to.length = length;
+        to.pos = pos;
+        to.finished = finished;
+        to.destroyed = destroyed;
+        if (length % blockLen)
+            to.buffer.set(buffer);
+        return to;
+    }
+}
+
+// SHA2-256 need to try 2^128 hashes to execute birthday attack.
+// BTC network is doing 2^67 hashes/sec as per early 2023.
+// Round constants:
+// first 32 bits of the fractional parts of the cube roots of the first 64 primes 2..311)
+// prettier-ignore
+const SHA256_K = /* @__PURE__ */ new Uint32Array([
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+]);
+// Initial state:
+// first 32 bits of the fractional parts of the square roots of the first 8 primes 2..19
+// prettier-ignore
+const SHA256_IV = /* @__PURE__ */ new Uint32Array([
+    0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
+]);
+// Temporary buffer, not used to store anything between runs
+// Named this way because it matches specification.
+const SHA256_W = /* @__PURE__ */ new Uint32Array(64);
+class SHA256 extends HashMD {
+    constructor() {
+        super(64, 32, 8, false);
+        // We cannot use array here since array allows indexing by variable
+        // which means optimizer/compiler cannot use registers.
+        this.A = SHA256_IV[0] | 0;
+        this.B = SHA256_IV[1] | 0;
+        this.C = SHA256_IV[2] | 0;
+        this.D = SHA256_IV[3] | 0;
+        this.E = SHA256_IV[4] | 0;
+        this.F = SHA256_IV[5] | 0;
+        this.G = SHA256_IV[6] | 0;
+        this.H = SHA256_IV[7] | 0;
+    }
+    get() {
+        const { A, B, C, D, E, F, G, H } = this;
+        return [A, B, C, D, E, F, G, H];
+    }
+    // prettier-ignore
+    set(A, B, C, D, E, F, G, H) {
+        this.A = A | 0;
+        this.B = B | 0;
+        this.C = C | 0;
+        this.D = D | 0;
+        this.E = E | 0;
+        this.F = F | 0;
+        this.G = G | 0;
+        this.H = H | 0;
+    }
+    process(view, offset) {
+        // Extend the first 16 words into the remaining 48 words w[16..63] of the message schedule array
+        for (let i = 0; i < 16; i++, offset += 4)
+            SHA256_W[i] = view.getUint32(offset, false);
+        for (let i = 16; i < 64; i++) {
+            const W15 = SHA256_W[i - 15];
+            const W2 = SHA256_W[i - 2];
+            const s0 = rotr(W15, 7) ^ rotr(W15, 18) ^ (W15 >>> 3);
+            const s1 = rotr(W2, 17) ^ rotr(W2, 19) ^ (W2 >>> 10);
+            SHA256_W[i] = (s1 + SHA256_W[i - 7] + s0 + SHA256_W[i - 16]) | 0;
+        }
+        // Compression function main loop, 64 rounds
+        let { A, B, C, D, E, F, G, H } = this;
+        for (let i = 0; i < 64; i++) {
+            const sigma1 = rotr(E, 6) ^ rotr(E, 11) ^ rotr(E, 25);
+            const T1 = (H + sigma1 + Chi(E, F, G) + SHA256_K[i] + SHA256_W[i]) | 0;
+            const sigma0 = rotr(A, 2) ^ rotr(A, 13) ^ rotr(A, 22);
+            const T2 = (sigma0 + Maj(A, B, C)) | 0;
+            H = G;
+            G = F;
+            F = E;
+            E = (D + T1) | 0;
+            D = C;
+            C = B;
+            B = A;
+            A = (T1 + T2) | 0;
+        }
+        // Add the compressed chunk to the current hash value
+        A = (A + this.A) | 0;
+        B = (B + this.B) | 0;
+        C = (C + this.C) | 0;
+        D = (D + this.D) | 0;
+        E = (E + this.E) | 0;
+        F = (F + this.F) | 0;
+        G = (G + this.G) | 0;
+        H = (H + this.H) | 0;
+        this.set(A, B, C, D, E, F, G, H);
+    }
+    roundClean() {
+        SHA256_W.fill(0);
+    }
+    destroy() {
+        this.set(0, 0, 0, 0, 0, 0, 0, 0);
+        this.buffer.fill(0);
+    }
+}
+/**
+ * SHA2-256 hash function
+ * @param message - data that would be hashed
+ */
+const sha256 = /* @__PURE__ */ wrapConstructor(() => new SHA256());
+
+/*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
+// 100 lines of code in the file are duplicated from noble-hashes (utils).
+// This is OK: `abstract` directory does not use noble-hashes.
+// User may opt-in into using different hashing library. This way, noble-hashes
+// won't be included into their bundle.
+const _0n$4 = BigInt(0);
+const _1n$5 = BigInt(1);
+const _2n$3 = BigInt(2);
+function isBytes(a) {
+    return (a instanceof Uint8Array ||
+        (a != null && typeof a === 'object' && a.constructor.name === 'Uint8Array'));
+}
+function abytes(item) {
+    if (!isBytes(item))
+        throw new Error('Uint8Array expected');
+}
+// Array where index 0xf0 (240) is mapped to string 'f0'
+const hexes = /* @__PURE__ */ Array.from({ length: 256 }, (_, i) => i.toString(16).padStart(2, '0'));
+/**
+ * @example bytesToHex(Uint8Array.from([0xca, 0xfe, 0x01, 0x23])) // 'cafe0123'
+ */
+function bytesToHex$2(bytes) {
+    abytes(bytes);
+    // pre-caching improves the speed 6x
+    let hex = '';
+    for (let i = 0; i < bytes.length; i++) {
+        hex += hexes[bytes[i]];
+    }
+    return hex;
+}
+function numberToHexUnpadded(num) {
+    const hex = num.toString(16);
+    return hex.length & 1 ? `0${hex}` : hex;
+}
+function hexToNumber(hex) {
+    if (typeof hex !== 'string')
+        throw new Error('hex string expected, got ' + typeof hex);
+    // Big Endian
+    return BigInt(hex === '' ? '0' : `0x${hex}`);
+}
+// We use optimized technique to convert hex string to byte array
+const asciis = { _0: 48, _9: 57, _A: 65, _F: 70, _a: 97, _f: 102 };
+function asciiToBase16(char) {
+    if (char >= asciis._0 && char <= asciis._9)
+        return char - asciis._0;
+    if (char >= asciis._A && char <= asciis._F)
+        return char - (asciis._A - 10);
+    if (char >= asciis._a && char <= asciis._f)
+        return char - (asciis._a - 10);
+    return;
+}
+/**
+ * @example hexToBytes('cafe0123') // Uint8Array.from([0xca, 0xfe, 0x01, 0x23])
+ */
+function hexToBytes$2(hex) {
+    if (typeof hex !== 'string')
+        throw new Error('hex string expected, got ' + typeof hex);
+    const hl = hex.length;
+    const al = hl / 2;
+    if (hl % 2)
+        throw new Error('padded hex string expected, got unpadded hex of length ' + hl);
+    const array = new Uint8Array(al);
+    for (let ai = 0, hi = 0; ai < al; ai++, hi += 2) {
+        const n1 = asciiToBase16(hex.charCodeAt(hi));
+        const n2 = asciiToBase16(hex.charCodeAt(hi + 1));
+        if (n1 === undefined || n2 === undefined) {
+            const char = hex[hi] + hex[hi + 1];
+            throw new Error('hex string expected, got non-hex character "' + char + '" at index ' + hi);
+        }
+        array[ai] = n1 * 16 + n2;
+    }
+    return array;
+}
+// BE: Big Endian, LE: Little Endian
+function bytesToNumberBE(bytes) {
+    return hexToNumber(bytesToHex$2(bytes));
+}
+function bytesToNumberLE(bytes) {
+    abytes(bytes);
+    return hexToNumber(bytesToHex$2(Uint8Array.from(bytes).reverse()));
+}
+function numberToBytesBE(n, len) {
+    return hexToBytes$2(n.toString(16).padStart(len * 2, '0'));
+}
+function numberToBytesLE(n, len) {
+    return numberToBytesBE(n, len).reverse();
+}
+// Unpadded, rarely used
+function numberToVarBytesBE(n) {
+    return hexToBytes$2(numberToHexUnpadded(n));
+}
+/**
+ * Takes hex string or Uint8Array, converts to Uint8Array.
+ * Validates output length.
+ * Will throw error for other types.
+ * @param title descriptive title for an error e.g. 'private key'
+ * @param hex hex string or Uint8Array
+ * @param expectedLength optional, will compare to result array's length
+ * @returns
+ */
+function ensureBytes(title, hex, expectedLength) {
+    let res;
+    if (typeof hex === 'string') {
+        try {
+            res = hexToBytes$2(hex);
+        }
+        catch (e) {
+            throw new Error(`${title} must be valid hex string, got "${hex}". Cause: ${e}`);
+        }
+    }
+    else if (isBytes(hex)) {
+        // Uint8Array.from() instead of hash.slice() because node.js Buffer
+        // is instance of Uint8Array, and its slice() creates **mutable** copy
+        res = Uint8Array.from(hex);
+    }
+    else {
+        throw new Error(`${title} must be hex string or Uint8Array`);
+    }
+    const len = res.length;
+    if (typeof expectedLength === 'number' && len !== expectedLength)
+        throw new Error(`${title} expected ${expectedLength} bytes, got ${len}`);
+    return res;
+}
+/**
+ * Copies several Uint8Arrays into one.
+ */
+function concatBytes$2(...arrays) {
+    let sum = 0;
+    for (let i = 0; i < arrays.length; i++) {
+        const a = arrays[i];
+        abytes(a);
+        sum += a.length;
+    }
+    const res = new Uint8Array(sum);
+    for (let i = 0, pad = 0; i < arrays.length; i++) {
+        const a = arrays[i];
+        res.set(a, pad);
+        pad += a.length;
+    }
+    return res;
+}
+// Compares 2 u8a-s in kinda constant time
+function equalBytes(a, b) {
+    if (a.length !== b.length)
+        return false;
+    let diff = 0;
+    for (let i = 0; i < a.length; i++)
+        diff |= a[i] ^ b[i];
+    return diff === 0;
+}
+/**
+ * @example utf8ToBytes('abc') // new Uint8Array([97, 98, 99])
+ */
+function utf8ToBytes$1(str) {
+    if (typeof str !== 'string')
+        throw new Error(`utf8ToBytes expected string, got ${typeof str}`);
+    return new Uint8Array(new TextEncoder().encode(str)); // https://bugzil.la/1681809
+}
+// Bit operations
+/**
+ * Calculates amount of bits in a bigint.
+ * Same as `n.toString(2).length`
+ */
+function bitLen(n) {
+    let len;
+    for (len = 0; n > _0n$4; n >>= _1n$5, len += 1)
+        ;
+    return len;
+}
+/**
+ * Gets single bit at position.
+ * NOTE: first bit position is 0 (same as arrays)
+ * Same as `!!+Array.from(n.toString(2)).reverse()[pos]`
+ */
+function bitGet(n, pos) {
+    return (n >> BigInt(pos)) & _1n$5;
+}
+/**
+ * Sets single bit at position.
+ */
+function bitSet(n, pos, value) {
+    return n | ((value ? _1n$5 : _0n$4) << BigInt(pos));
+}
+/**
+ * Calculate mask for N bits. Not using ** operator with bigints because of old engines.
+ * Same as BigInt(`0b${Array(i).fill('1').join('')}`)
+ */
+const bitMask = (n) => (_2n$3 << BigInt(n - 1)) - _1n$5;
+// DRBG
+const u8n = (data) => new Uint8Array(data); // creates Uint8Array
+const u8fr = (arr) => Uint8Array.from(arr); // another shortcut
+/**
+ * Minimal HMAC-DRBG from NIST 800-90 for RFC6979 sigs.
+ * @returns function that will call DRBG until 2nd arg returns something meaningful
+ * @example
+ *   const drbg = createHmacDRBG<Key>(32, 32, hmac);
+ *   drbg(seed, bytesToKey); // bytesToKey must return Key or undefined
+ */
+function createHmacDrbg(hashLen, qByteLen, hmacFn) {
+    if (typeof hashLen !== 'number' || hashLen < 2)
+        throw new Error('hashLen must be a number');
+    if (typeof qByteLen !== 'number' || qByteLen < 2)
+        throw new Error('qByteLen must be a number');
+    if (typeof hmacFn !== 'function')
+        throw new Error('hmacFn must be a function');
+    // Step B, Step C: set hashLen to 8*ceil(hlen/8)
+    let v = u8n(hashLen); // Minimal non-full-spec HMAC-DRBG from NIST 800-90 for RFC6979 sigs.
+    let k = u8n(hashLen); // Steps B and C of RFC6979 3.2: set hashLen, in our case always same
+    let i = 0; // Iterations counter, will throw when over 1000
+    const reset = () => {
+        v.fill(1);
+        k.fill(0);
+        i = 0;
+    };
+    const h = (...b) => hmacFn(k, v, ...b); // hmac(k)(v, ...values)
+    const reseed = (seed = u8n()) => {
+        // HMAC-DRBG reseed() function. Steps D-G
+        k = h(u8fr([0x00]), seed); // k = hmac(k || v || 0x00 || seed)
+        v = h(); // v = hmac(k || v)
+        if (seed.length === 0)
+            return;
+        k = h(u8fr([0x01]), seed); // k = hmac(k || v || 0x01 || seed)
+        v = h(); // v = hmac(k || v)
+    };
+    const gen = () => {
+        // HMAC-DRBG generate() function
+        if (i++ >= 1000)
+            throw new Error('drbg: tried 1000 values');
+        let len = 0;
+        const out = [];
+        while (len < qByteLen) {
+            v = h();
+            const sl = v.slice();
+            out.push(sl);
+            len += v.length;
+        }
+        return concatBytes$2(...out);
+    };
+    const genUntil = (seed, pred) => {
+        reset();
+        reseed(seed); // Steps D-G
+        let res = undefined; // Step H: grind until k is in [1..n-1]
+        while (!(res = pred(gen())))
+            reseed();
+        reset();
+        return res;
+    };
+    return genUntil;
+}
+// Validating curves and fields
+const validatorFns = {
+    bigint: (val) => typeof val === 'bigint',
+    function: (val) => typeof val === 'function',
+    boolean: (val) => typeof val === 'boolean',
+    string: (val) => typeof val === 'string',
+    stringOrUint8Array: (val) => typeof val === 'string' || isBytes(val),
+    isSafeInteger: (val) => Number.isSafeInteger(val),
+    array: (val) => Array.isArray(val),
+    field: (val, object) => object.Fp.isValid(val),
+    hash: (val) => typeof val === 'function' && Number.isSafeInteger(val.outputLen),
+};
+// type Record<K extends string | number | symbol, T> = { [P in K]: T; }
+function validateObject(object, validators, optValidators = {}) {
+    const checkField = (fieldName, type, isOptional) => {
+        const checkVal = validatorFns[type];
+        if (typeof checkVal !== 'function')
+            throw new Error(`Invalid validator "${type}", expected function`);
+        const val = object[fieldName];
+        if (isOptional && val === undefined)
+            return;
+        if (!checkVal(val, object)) {
+            throw new Error(`Invalid param ${String(fieldName)}=${val} (${typeof val}), expected ${type}`);
+        }
+    };
+    for (const [fieldName, type] of Object.entries(validators))
+        checkField(fieldName, type, false);
+    for (const [fieldName, type] of Object.entries(optValidators))
+        checkField(fieldName, type, true);
+    return object;
+}
+// validate type tests
+// const o: { a: number; b: number; c: number } = { a: 1, b: 5, c: 6 };
+// const z0 = validateObject(o, { a: 'isSafeInteger' }, { c: 'bigint' }); // Ok!
+// // Should fail type-check
+// const z1 = validateObject(o, { a: 'tmp' }, { c: 'zz' });
+// const z2 = validateObject(o, { a: 'isSafeInteger' }, { c: 'zz' });
+// const z3 = validateObject(o, { test: 'boolean', z: 'bug' });
+// const z4 = validateObject(o, { a: 'boolean', z: 'bug' });
+
+var ut = /*#__PURE__*/Object.freeze({
+    __proto__: null,
+    abytes: abytes,
+    bitGet: bitGet,
+    bitLen: bitLen,
+    bitMask: bitMask,
+    bitSet: bitSet,
+    bytesToHex: bytesToHex$2,
+    bytesToNumberBE: bytesToNumberBE,
+    bytesToNumberLE: bytesToNumberLE,
+    concatBytes: concatBytes$2,
+    createHmacDrbg: createHmacDrbg,
+    ensureBytes: ensureBytes,
+    equalBytes: equalBytes,
+    hexToBytes: hexToBytes$2,
+    hexToNumber: hexToNumber,
+    isBytes: isBytes,
+    numberToBytesBE: numberToBytesBE,
+    numberToBytesLE: numberToBytesLE,
+    numberToHexUnpadded: numberToHexUnpadded,
+    numberToVarBytesBE: numberToVarBytesBE,
+    utf8ToBytes: utf8ToBytes$1,
+    validateObject: validateObject
+});
+
+/*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
+// Utilities for modular arithmetics and finite fields
+// prettier-ignore
+const _0n$3 = BigInt(0), _1n$4 = BigInt(1), _2n$2 = BigInt(2), _3n$1 = BigInt(3);
+// prettier-ignore
+const _4n = BigInt(4), _5n = BigInt(5), _8n = BigInt(8);
+// prettier-ignore
+BigInt(9); BigInt(16);
+// Calculates a modulo b
+function mod(a, b) {
+    const result = a % b;
+    return result >= _0n$3 ? result : b + result;
+}
+/**
+ * Efficiently raise num to power and do modular division.
+ * Unsafe in some contexts: uses ladder, so can expose bigint bits.
+ * @example
+ * pow(2n, 6n, 11n) // 64n % 11n == 9n
+ */
+// TODO: use field version && remove
+function pow(num, power, modulo) {
+    if (modulo <= _0n$3 || power < _0n$3)
+        throw new Error('Expected power/modulo > 0');
+    if (modulo === _1n$4)
+        return _0n$3;
+    let res = _1n$4;
+    while (power > _0n$3) {
+        if (power & _1n$4)
+            res = (res * num) % modulo;
+        num = (num * num) % modulo;
+        power >>= _1n$4;
+    }
+    return res;
+}
+// Does x ^ (2 ^ power) mod p. pow2(30, 4) == 30 ^ (2 ^ 4)
+function pow2(x, power, modulo) {
+    let res = x;
+    while (power-- > _0n$3) {
+        res *= res;
+        res %= modulo;
+    }
+    return res;
+}
+// Inverses number over modulo
+function invert(number, modulo) {
+    if (number === _0n$3 || modulo <= _0n$3) {
+        throw new Error(`invert: expected positive integers, got n=${number} mod=${modulo}`);
+    }
+    // Euclidean GCD https://brilliant.org/wiki/extended-euclidean-algorithm/
+    // Fermat's little theorem "CT-like" version inv(n) = n^(m-2) mod m is 30x slower.
+    let a = mod(number, modulo);
+    let b = modulo;
+    // prettier-ignore
+    let x = _0n$3, u = _1n$4;
+    while (a !== _0n$3) {
+        // JIT applies optimization if those two lines follow each other
+        const q = b / a;
+        const r = b % a;
+        const m = x - u * q;
+        // prettier-ignore
+        b = a, a = r, x = u, u = m;
+    }
+    const gcd = b;
+    if (gcd !== _1n$4)
+        throw new Error('invert: does not exist');
+    return mod(x, modulo);
+}
+/**
+ * Tonelli-Shanks square root search algorithm.
+ * 1. https://eprint.iacr.org/2012/685.pdf (page 12)
+ * 2. Square Roots from 1; 24, 51, 10 to Dan Shanks
+ * Will start an infinite loop if field order P is not prime.
+ * @param P field order
+ * @returns function that takes field Fp (created from P) and number n
+ */
+function tonelliShanks(P) {
+    // Legendre constant: used to calculate Legendre symbol (a | p),
+    // which denotes the value of a^((p-1)/2) (mod p).
+    // (a | p) ≡ 1    if a is a square (mod p)
+    // (a | p) ≡ -1   if a is not a square (mod p)
+    // (a | p) ≡ 0    if a ≡ 0 (mod p)
+    const legendreC = (P - _1n$4) / _2n$2;
+    let Q, S, Z;
+    // Step 1: By factoring out powers of 2 from p - 1,
+    // find q and s such that p - 1 = q*(2^s) with q odd
+    for (Q = P - _1n$4, S = 0; Q % _2n$2 === _0n$3; Q /= _2n$2, S++)
+        ;
+    // Step 2: Select a non-square z such that (z | p) ≡ -1 and set c ≡ zq
+    for (Z = _2n$2; Z < P && pow(Z, legendreC, P) !== P - _1n$4; Z++)
+        ;
+    // Fast-path
+    if (S === 1) {
+        const p1div4 = (P + _1n$4) / _4n;
+        return function tonelliFast(Fp, n) {
+            const root = Fp.pow(n, p1div4);
+            if (!Fp.eql(Fp.sqr(root), n))
+                throw new Error('Cannot find square root');
+            return root;
+        };
+    }
+    // Slow-path
+    const Q1div2 = (Q + _1n$4) / _2n$2;
+    return function tonelliSlow(Fp, n) {
+        // Step 0: Check that n is indeed a square: (n | p) should not be ≡ -1
+        if (Fp.pow(n, legendreC) === Fp.neg(Fp.ONE))
+            throw new Error('Cannot find square root');
+        let r = S;
+        // TODO: will fail at Fp2/etc
+        let g = Fp.pow(Fp.mul(Fp.ONE, Z), Q); // will update both x and b
+        let x = Fp.pow(n, Q1div2); // first guess at the square root
+        let b = Fp.pow(n, Q); // first guess at the fudge factor
+        while (!Fp.eql(b, Fp.ONE)) {
+            if (Fp.eql(b, Fp.ZERO))
+                return Fp.ZERO; // https://en.wikipedia.org/wiki/Tonelli%E2%80%93Shanks_algorithm (4. If t = 0, return r = 0)
+            // Find m such b^(2^m)==1
+            let m = 1;
+            for (let t2 = Fp.sqr(b); m < r; m++) {
+                if (Fp.eql(t2, Fp.ONE))
+                    break;
+                t2 = Fp.sqr(t2); // t2 *= t2
+            }
+            // NOTE: r-m-1 can be bigger than 32, need to convert to bigint before shift, otherwise there will be overflow
+            const ge = Fp.pow(g, _1n$4 << BigInt(r - m - 1)); // ge = 2^(r-m-1)
+            g = Fp.sqr(ge); // g = ge * ge
+            x = Fp.mul(x, ge); // x *= ge
+            b = Fp.mul(b, g); // b *= g
+            r = m;
+        }
+        return x;
+    };
+}
+function FpSqrt(P) {
+    // NOTE: different algorithms can give different roots, it is up to user to decide which one they want.
+    // For example there is FpSqrtOdd/FpSqrtEven to choice root based on oddness (used for hash-to-curve).
+    // P ≡ 3 (mod 4)
+    // √n = n^((P+1)/4)
+    if (P % _4n === _3n$1) {
+        // Not all roots possible!
+        // const ORDER =
+        //   0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaabn;
+        // const NUM = 72057594037927816n;
+        const p1div4 = (P + _1n$4) / _4n;
+        return function sqrt3mod4(Fp, n) {
+            const root = Fp.pow(n, p1div4);
+            // Throw if root**2 != n
+            if (!Fp.eql(Fp.sqr(root), n))
+                throw new Error('Cannot find square root');
+            return root;
+        };
+    }
+    // Atkin algorithm for q ≡ 5 (mod 8), https://eprint.iacr.org/2012/685.pdf (page 10)
+    if (P % _8n === _5n) {
+        const c1 = (P - _5n) / _8n;
+        return function sqrt5mod8(Fp, n) {
+            const n2 = Fp.mul(n, _2n$2);
+            const v = Fp.pow(n2, c1);
+            const nv = Fp.mul(n, v);
+            const i = Fp.mul(Fp.mul(nv, _2n$2), v);
+            const root = Fp.mul(nv, Fp.sub(i, Fp.ONE));
+            if (!Fp.eql(Fp.sqr(root), n))
+                throw new Error('Cannot find square root');
+            return root;
+        };
+    }
+    // Other cases: Tonelli-Shanks algorithm
+    return tonelliShanks(P);
+}
+// prettier-ignore
+const FIELD_FIELDS = [
+    'create', 'isValid', 'is0', 'neg', 'inv', 'sqrt', 'sqr',
+    'eql', 'add', 'sub', 'mul', 'pow', 'div',
+    'addN', 'subN', 'mulN', 'sqrN'
+];
+function validateField(field) {
+    const initial = {
+        ORDER: 'bigint',
+        MASK: 'bigint',
+        BYTES: 'isSafeInteger',
+        BITS: 'isSafeInteger',
+    };
+    const opts = FIELD_FIELDS.reduce((map, val) => {
+        map[val] = 'function';
+        return map;
+    }, initial);
+    return validateObject(field, opts);
+}
+// Generic field functions
+/**
+ * Same as `pow` but for Fp: non-constant-time.
+ * Unsafe in some contexts: uses ladder, so can expose bigint bits.
+ */
+function FpPow(f, num, power) {
+    // Should have same speed as pow for bigints
+    // TODO: benchmark!
+    if (power < _0n$3)
+        throw new Error('Expected power > 0');
+    if (power === _0n$3)
+        return f.ONE;
+    if (power === _1n$4)
+        return num;
+    let p = f.ONE;
+    let d = num;
+    while (power > _0n$3) {
+        if (power & _1n$4)
+            p = f.mul(p, d);
+        d = f.sqr(d);
+        power >>= _1n$4;
+    }
+    return p;
+}
+/**
+ * Efficiently invert an array of Field elements.
+ * `inv(0)` will return `undefined` here: make sure to throw an error.
+ */
+function FpInvertBatch(f, nums) {
+    const tmp = new Array(nums.length);
+    // Walk from first to last, multiply them by each other MOD p
+    const lastMultiplied = nums.reduce((acc, num, i) => {
+        if (f.is0(num))
+            return acc;
+        tmp[i] = acc;
+        return f.mul(acc, num);
+    }, f.ONE);
+    // Invert last element
+    const inverted = f.inv(lastMultiplied);
+    // Walk from last to first, multiply them by inverted each other MOD p
+    nums.reduceRight((acc, num, i) => {
+        if (f.is0(num))
+            return acc;
+        tmp[i] = f.mul(acc, tmp[i]);
+        return f.mul(acc, num);
+    }, inverted);
+    return tmp;
+}
+// CURVE.n lengths
+function nLength(n, nBitLength) {
+    // Bit size, byte size of CURVE.n
+    const _nBitLength = nBitLength !== undefined ? nBitLength : n.toString(2).length;
+    const nByteLength = Math.ceil(_nBitLength / 8);
+    return { nBitLength: _nBitLength, nByteLength };
+}
+/**
+ * Initializes a finite field over prime. **Non-primes are not supported.**
+ * Do not init in loop: slow. Very fragile: always run a benchmark on a change.
+ * Major performance optimizations:
+ * * a) denormalized operations like mulN instead of mul
+ * * b) same object shape: never add or remove keys
+ * * c) Object.freeze
+ * @param ORDER prime positive bigint
+ * @param bitLen how many bits the field consumes
+ * @param isLE (def: false) if encoding / decoding should be in little-endian
+ * @param redef optional faster redefinitions of sqrt and other methods
+ */
+function Field(ORDER, bitLen, isLE = false, redef = {}) {
+    if (ORDER <= _0n$3)
+        throw new Error(`Expected Field ORDER > 0, got ${ORDER}`);
+    const { nBitLength: BITS, nByteLength: BYTES } = nLength(ORDER, bitLen);
+    if (BYTES > 2048)
+        throw new Error('Field lengths over 2048 bytes are not supported');
+    const sqrtP = FpSqrt(ORDER);
+    const f = Object.freeze({
+        ORDER,
+        BITS,
+        BYTES,
+        MASK: bitMask(BITS),
+        ZERO: _0n$3,
+        ONE: _1n$4,
+        create: (num) => mod(num, ORDER),
+        isValid: (num) => {
+            if (typeof num !== 'bigint')
+                throw new Error(`Invalid field element: expected bigint, got ${typeof num}`);
+            return _0n$3 <= num && num < ORDER; // 0 is valid element, but it's not invertible
+        },
+        is0: (num) => num === _0n$3,
+        isOdd: (num) => (num & _1n$4) === _1n$4,
+        neg: (num) => mod(-num, ORDER),
+        eql: (lhs, rhs) => lhs === rhs,
+        sqr: (num) => mod(num * num, ORDER),
+        add: (lhs, rhs) => mod(lhs + rhs, ORDER),
+        sub: (lhs, rhs) => mod(lhs - rhs, ORDER),
+        mul: (lhs, rhs) => mod(lhs * rhs, ORDER),
+        pow: (num, power) => FpPow(f, num, power),
+        div: (lhs, rhs) => mod(lhs * invert(rhs, ORDER), ORDER),
+        // Same as above, but doesn't normalize
+        sqrN: (num) => num * num,
+        addN: (lhs, rhs) => lhs + rhs,
+        subN: (lhs, rhs) => lhs - rhs,
+        mulN: (lhs, rhs) => lhs * rhs,
+        inv: (num) => invert(num, ORDER),
+        sqrt: redef.sqrt || ((n) => sqrtP(f, n)),
+        invertBatch: (lst) => FpInvertBatch(f, lst),
+        // TODO: do we really need constant cmov?
+        // We don't have const-time bigints anyway, so probably will be not very useful
+        cmov: (a, b, c) => (c ? b : a),
+        toBytes: (num) => (isLE ? numberToBytesLE(num, BYTES) : numberToBytesBE(num, BYTES)),
+        fromBytes: (bytes) => {
+            if (bytes.length !== BYTES)
+                throw new Error(`Fp.fromBytes: expected ${BYTES}, got ${bytes.length}`);
+            return isLE ? bytesToNumberLE(bytes) : bytesToNumberBE(bytes);
+        },
+    });
+    return Object.freeze(f);
+}
+/**
+ * Returns total number of bytes consumed by the field element.
+ * For example, 32 bytes for usual 256-bit weierstrass curve.
+ * @param fieldOrder number of field elements, usually CURVE.n
+ * @returns byte length of field
+ */
+function getFieldBytesLength(fieldOrder) {
+    if (typeof fieldOrder !== 'bigint')
+        throw new Error('field order must be bigint');
+    const bitLength = fieldOrder.toString(2).length;
+    return Math.ceil(bitLength / 8);
+}
+/**
+ * Returns minimal amount of bytes that can be safely reduced
+ * by field order.
+ * Should be 2^-128 for 128-bit curve such as P256.
+ * @param fieldOrder number of field elements, usually CURVE.n
+ * @returns byte length of target hash
+ */
+function getMinHashLength(fieldOrder) {
+    const length = getFieldBytesLength(fieldOrder);
+    return length + Math.ceil(length / 2);
+}
+/**
+ * "Constant-time" private key generation utility.
+ * Can take (n + n/2) or more bytes of uniform input e.g. from CSPRNG or KDF
+ * and convert them into private scalar, with the modulo bias being negligible.
+ * Needs at least 48 bytes of input for 32-byte private key.
+ * https://research.kudelskisecurity.com/2020/07/28/the-definitive-guide-to-modulo-bias-and-how-to-avoid-it/
+ * FIPS 186-5, A.2 https://csrc.nist.gov/publications/detail/fips/186/5/final
+ * RFC 9380, https://www.rfc-editor.org/rfc/rfc9380#section-5
+ * @param hash hash output from SHA3 or a similar function
+ * @param groupOrder size of subgroup - (e.g. secp256k1.CURVE.n)
+ * @param isLE interpret hash bytes as LE num
+ * @returns valid private scalar
+ */
+function mapHashToField(key, fieldOrder, isLE = false) {
+    const len = key.length;
+    const fieldLen = getFieldBytesLength(fieldOrder);
+    const minLen = getMinHashLength(fieldOrder);
+    // No small numbers: need to understand bias story. No huge numbers: easier to detect JS timings.
+    if (len < 16 || len < minLen || len > 1024)
+        throw new Error(`expected ${minLen}-1024 bytes of input, got ${len}`);
+    const num = isLE ? bytesToNumberBE(key) : bytesToNumberLE(key);
+    // `mod(x, 11)` can sometimes produce 0. `mod(x, 10) + 1` is the same, but no 0
+    const reduced = mod(num, fieldOrder - _1n$4) + _1n$4;
+    return isLE ? numberToBytesLE(reduced, fieldLen) : numberToBytesBE(reduced, fieldLen);
+}
+
+/*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
+// Abelian group utilities
+const _0n$2 = BigInt(0);
+const _1n$3 = BigInt(1);
+// Elliptic curve multiplication of Point by scalar. Fragile.
+// Scalars should always be less than curve order: this should be checked inside of a curve itself.
+// Creates precomputation tables for fast multiplication:
+// - private scalar is split by fixed size windows of W bits
+// - every window point is collected from window's table & added to accumulator
+// - since windows are different, same point inside tables won't be accessed more than once per calc
+// - each multiplication is 'Math.ceil(CURVE_ORDER / 𝑊) + 1' point additions (fixed for any scalar)
+// - +1 window is neccessary for wNAF
+// - wNAF reduces table size: 2x less memory + 2x faster generation, but 10% slower multiplication
+// TODO: Research returning 2d JS array of windows, instead of a single window. This would allow
+// windows to be in different memory locations
+function wNAF(c, bits) {
+    const constTimeNegate = (condition, item) => {
+        const neg = item.negate();
+        return condition ? neg : item;
+    };
+    const opts = (W) => {
+        const windows = Math.ceil(bits / W) + 1; // +1, because
+        const windowSize = 2 ** (W - 1); // -1 because we skip zero
+        return { windows, windowSize };
+    };
+    return {
+        constTimeNegate,
+        // non-const time multiplication ladder
+        unsafeLadder(elm, n) {
+            let p = c.ZERO;
+            let d = elm;
+            while (n > _0n$2) {
+                if (n & _1n$3)
+                    p = p.add(d);
+                d = d.double();
+                n >>= _1n$3;
+            }
+            return p;
+        },
+        /**
+         * Creates a wNAF precomputation window. Used for caching.
+         * Default window size is set by `utils.precompute()` and is equal to 8.
+         * Number of precomputed points depends on the curve size:
+         * 2^(𝑊−1) * (Math.ceil(𝑛 / 𝑊) + 1), where:
+         * - 𝑊 is the window size
+         * - 𝑛 is the bitlength of the curve order.
+         * For a 256-bit curve and window size 8, the number of precomputed points is 128 * 33 = 4224.
+         * @returns precomputed point tables flattened to a single array
+         */
+        precomputeWindow(elm, W) {
+            const { windows, windowSize } = opts(W);
+            const points = [];
+            let p = elm;
+            let base = p;
+            for (let window = 0; window < windows; window++) {
+                base = p;
+                points.push(base);
+                // =1, because we skip zero
+                for (let i = 1; i < windowSize; i++) {
+                    base = base.add(p);
+                    points.push(base);
+                }
+                p = base.double();
+            }
+            return points;
+        },
+        /**
+         * Implements ec multiplication using precomputed tables and w-ary non-adjacent form.
+         * @param W window size
+         * @param precomputes precomputed tables
+         * @param n scalar (we don't check here, but should be less than curve order)
+         * @returns real and fake (for const-time) points
+         */
+        wNAF(W, precomputes, n) {
+            // TODO: maybe check that scalar is less than group order? wNAF behavious is undefined otherwise
+            // But need to carefully remove other checks before wNAF. ORDER == bits here
+            const { windows, windowSize } = opts(W);
+            let p = c.ZERO;
+            let f = c.BASE;
+            const mask = BigInt(2 ** W - 1); // Create mask with W ones: 0b1111 for W=4 etc.
+            const maxNumber = 2 ** W;
+            const shiftBy = BigInt(W);
+            for (let window = 0; window < windows; window++) {
+                const offset = window * windowSize;
+                // Extract W bits.
+                let wbits = Number(n & mask);
+                // Shift number by W bits.
+                n >>= shiftBy;
+                // If the bits are bigger than max size, we'll split those.
+                // +224 => 256 - 32
+                if (wbits > windowSize) {
+                    wbits -= maxNumber;
+                    n += _1n$3;
+                }
+                // This code was first written with assumption that 'f' and 'p' will never be infinity point:
+                // since each addition is multiplied by 2 ** W, it cannot cancel each other. However,
+                // there is negate now: it is possible that negated element from low value
+                // would be the same as high element, which will create carry into next window.
+                // It's not obvious how this can fail, but still worth investigating later.
+                // Check if we're onto Zero point.
+                // Add random point inside current window to f.
+                const offset1 = offset;
+                const offset2 = offset + Math.abs(wbits) - 1; // -1 because we skip zero
+                const cond1 = window % 2 !== 0;
+                const cond2 = wbits < 0;
+                if (wbits === 0) {
+                    // The most important part for const-time getPublicKey
+                    f = f.add(constTimeNegate(cond1, precomputes[offset1]));
+                }
+                else {
+                    p = p.add(constTimeNegate(cond2, precomputes[offset2]));
+                }
+            }
+            // JIT-compiler should not eliminate f here, since it will later be used in normalizeZ()
+            // Even if the variable is still unused, there are some checks which will
+            // throw an exception, so compiler needs to prove they won't happen, which is hard.
+            // At this point there is a way to F be infinity-point even if p is not,
+            // which makes it less const-time: around 1 bigint multiply.
+            return { p, f };
+        },
+        wNAFCached(P, precomputesMap, n, transform) {
+            // @ts-ignore
+            const W = P._WINDOW_SIZE || 1;
+            // Calculate precomputes on a first run, reuse them after
+            let comp = precomputesMap.get(P);
+            if (!comp) {
+                comp = this.precomputeWindow(P, W);
+                if (W !== 1) {
+                    precomputesMap.set(P, transform(comp));
+                }
+            }
+            return this.wNAF(W, comp, n);
+        },
+    };
+}
+function validateBasic(curve) {
+    validateField(curve.Fp);
+    validateObject(curve, {
+        n: 'bigint',
+        h: 'bigint',
+        Gx: 'field',
+        Gy: 'field',
+    }, {
+        nBitLength: 'isSafeInteger',
+        nByteLength: 'isSafeInteger',
+    });
+    // Set defaults
+    return Object.freeze({
+        ...nLength(curve.n, curve.nBitLength),
+        ...curve,
+        ...{ p: curve.Fp.ORDER },
+    });
+}
+
+/*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
+// Short Weierstrass curve. The formula is: y² = x³ + ax + b
+function validatePointOpts(curve) {
+    const opts = validateBasic(curve);
+    validateObject(opts, {
+        a: 'field',
+        b: 'field',
+    }, {
+        allowedPrivateKeyLengths: 'array',
+        wrapPrivateKey: 'boolean',
+        isTorsionFree: 'function',
+        clearCofactor: 'function',
+        allowInfinityPoint: 'boolean',
+        fromBytes: 'function',
+        toBytes: 'function',
+    });
+    const { endo, Fp, a } = opts;
+    if (endo) {
+        if (!Fp.eql(a, Fp.ZERO)) {
+            throw new Error('Endomorphism can only be defined for Koblitz curves that have a=0');
+        }
+        if (typeof endo !== 'object' ||
+            typeof endo.beta !== 'bigint' ||
+            typeof endo.splitScalar !== 'function') {
+            throw new Error('Expected endomorphism with beta: bigint and splitScalar: function');
+        }
+    }
+    return Object.freeze({ ...opts });
+}
+// ASN.1 DER encoding utilities
+const { bytesToNumberBE: b2n, hexToBytes: h2b } = ut;
+const DER = {
+    // asn.1 DER encoding utils
+    Err: class DERErr extends Error {
+        constructor(m = '') {
+            super(m);
+        }
+    },
+    _parseInt(data) {
+        const { Err: E } = DER;
+        if (data.length < 2 || data[0] !== 0x02)
+            throw new E('Invalid signature integer tag');
+        const len = data[1];
+        const res = data.subarray(2, len + 2);
+        if (!len || res.length !== len)
+            throw new E('Invalid signature integer: wrong length');
+        // https://crypto.stackexchange.com/a/57734 Leftmost bit of first byte is 'negative' flag,
+        // since we always use positive integers here. It must always be empty:
+        // - add zero byte if exists
+        // - if next byte doesn't have a flag, leading zero is not allowed (minimal encoding)
+        if (res[0] & 0b10000000)
+            throw new E('Invalid signature integer: negative');
+        if (res[0] === 0x00 && !(res[1] & 0b10000000))
+            throw new E('Invalid signature integer: unnecessary leading zero');
+        return { d: b2n(res), l: data.subarray(len + 2) }; // d is data, l is left
+    },
+    toSig(hex) {
+        // parse DER signature
+        const { Err: E } = DER;
+        const data = typeof hex === 'string' ? h2b(hex) : hex;
+        abytes(data);
+        let l = data.length;
+        if (l < 2 || data[0] != 0x30)
+            throw new E('Invalid signature tag');
+        if (data[1] !== l - 2)
+            throw new E('Invalid signature: incorrect length');
+        const { d: r, l: sBytes } = DER._parseInt(data.subarray(2));
+        const { d: s, l: rBytesLeft } = DER._parseInt(sBytes);
+        if (rBytesLeft.length)
+            throw new E('Invalid signature: left bytes after parsing');
+        return { r, s };
+    },
+    hexFromSig(sig) {
+        // Add leading zero if first byte has negative bit enabled. More details in '_parseInt'
+        const slice = (s) => (Number.parseInt(s[0], 16) & 0b1000 ? '00' + s : s);
+        const h = (num) => {
+            const hex = num.toString(16);
+            return hex.length & 1 ? `0${hex}` : hex;
+        };
+        const s = slice(h(sig.s));
+        const r = slice(h(sig.r));
+        const shl = s.length / 2;
+        const rhl = r.length / 2;
+        const sl = h(shl);
+        const rl = h(rhl);
+        return `30${h(rhl + shl + 4)}02${rl}${r}02${sl}${s}`;
+    },
+};
+// Be friendly to bad ECMAScript parsers by not using bigint literals
+// prettier-ignore
+const _0n$1 = BigInt(0), _1n$2 = BigInt(1); BigInt(2); const _3n = BigInt(3); BigInt(4);
+function weierstrassPoints(opts) {
+    const CURVE = validatePointOpts(opts);
+    const { Fp } = CURVE; // All curves has same field / group length as for now, but they can differ
+    const toBytes = CURVE.toBytes ||
+        ((_c, point, _isCompressed) => {
+            const a = point.toAffine();
+            return concatBytes$2(Uint8Array.from([0x04]), Fp.toBytes(a.x), Fp.toBytes(a.y));
+        });
+    const fromBytes = CURVE.fromBytes ||
+        ((bytes) => {
+            // const head = bytes[0];
+            const tail = bytes.subarray(1);
+            // if (head !== 0x04) throw new Error('Only non-compressed encoding is supported');
+            const x = Fp.fromBytes(tail.subarray(0, Fp.BYTES));
+            const y = Fp.fromBytes(tail.subarray(Fp.BYTES, 2 * Fp.BYTES));
+            return { x, y };
+        });
+    /**
+     * y² = x³ + ax + b: Short weierstrass curve formula
+     * @returns y²
+     */
+    function weierstrassEquation(x) {
+        const { a, b } = CURVE;
+        const x2 = Fp.sqr(x); // x * x
+        const x3 = Fp.mul(x2, x); // x2 * x
+        return Fp.add(Fp.add(x3, Fp.mul(x, a)), b); // x3 + a * x + b
+    }
+    // Validate whether the passed curve params are valid.
+    // We check if curve equation works for generator point.
+    // `assertValidity()` won't work: `isTorsionFree()` is not available at this point in bls12-381.
+    // ProjectivePoint class has not been initialized yet.
+    if (!Fp.eql(Fp.sqr(CURVE.Gy), weierstrassEquation(CURVE.Gx)))
+        throw new Error('bad generator point: equation left != right');
+    // Valid group elements reside in range 1..n-1
+    function isWithinCurveOrder(num) {
+        return typeof num === 'bigint' && _0n$1 < num && num < CURVE.n;
+    }
+    function assertGE(num) {
+        if (!isWithinCurveOrder(num))
+            throw new Error('Expected valid bigint: 0 < bigint < curve.n');
+    }
+    // Validates if priv key is valid and converts it to bigint.
+    // Supports options allowedPrivateKeyLengths and wrapPrivateKey.
+    function normPrivateKeyToScalar(key) {
+        const { allowedPrivateKeyLengths: lengths, nByteLength, wrapPrivateKey, n } = CURVE;
+        if (lengths && typeof key !== 'bigint') {
+            if (isBytes(key))
+                key = bytesToHex$2(key);
+            // Normalize to hex string, pad. E.g. P521 would norm 130-132 char hex to 132-char bytes
+            if (typeof key !== 'string' || !lengths.includes(key.length))
+                throw new Error('Invalid key');
+            key = key.padStart(nByteLength * 2, '0');
+        }
+        let num;
+        try {
+            num =
+                typeof key === 'bigint'
+                    ? key
+                    : bytesToNumberBE(ensureBytes('private key', key, nByteLength));
+        }
+        catch (error) {
+            throw new Error(`private key must be ${nByteLength} bytes, hex or bigint, not ${typeof key}`);
+        }
+        if (wrapPrivateKey)
+            num = mod(num, n); // disabled by default, enabled for BLS
+        assertGE(num); // num in range [1..N-1]
+        return num;
+    }
+    const pointPrecomputes = new Map();
+    function assertPrjPoint(other) {
+        if (!(other instanceof Point))
+            throw new Error('ProjectivePoint expected');
+    }
+    /**
+     * Projective Point works in 3d / projective (homogeneous) coordinates: (x, y, z) ∋ (x=x/z, y=y/z)
+     * Default Point works in 2d / affine coordinates: (x, y)
+     * We're doing calculations in projective, because its operations don't require costly inversion.
+     */
+    class Point {
+        constructor(px, py, pz) {
+            this.px = px;
+            this.py = py;
+            this.pz = pz;
+            if (px == null || !Fp.isValid(px))
+                throw new Error('x required');
+            if (py == null || !Fp.isValid(py))
+                throw new Error('y required');
+            if (pz == null || !Fp.isValid(pz))
+                throw new Error('z required');
+        }
+        // Does not validate if the point is on-curve.
+        // Use fromHex instead, or call assertValidity() later.
+        static fromAffine(p) {
+            const { x, y } = p || {};
+            if (!p || !Fp.isValid(x) || !Fp.isValid(y))
+                throw new Error('invalid affine point');
+            if (p instanceof Point)
+                throw new Error('projective point not allowed');
+            const is0 = (i) => Fp.eql(i, Fp.ZERO);
+            // fromAffine(x:0, y:0) would produce (x:0, y:0, z:1), but we need (x:0, y:1, z:0)
+            if (is0(x) && is0(y))
+                return Point.ZERO;
+            return new Point(x, y, Fp.ONE);
+        }
+        get x() {
+            return this.toAffine().x;
+        }
+        get y() {
+            return this.toAffine().y;
+        }
+        /**
+         * Takes a bunch of Projective Points but executes only one
+         * inversion on all of them. Inversion is very slow operation,
+         * so this improves performance massively.
+         * Optimization: converts a list of projective points to a list of identical points with Z=1.
+         */
+        static normalizeZ(points) {
+            const toInv = Fp.invertBatch(points.map((p) => p.pz));
+            return points.map((p, i) => p.toAffine(toInv[i])).map(Point.fromAffine);
+        }
+        /**
+         * Converts hash string or Uint8Array to Point.
+         * @param hex short/long ECDSA hex
+         */
+        static fromHex(hex) {
+            const P = Point.fromAffine(fromBytes(ensureBytes('pointHex', hex)));
+            P.assertValidity();
+            return P;
+        }
+        // Multiplies generator point by privateKey.
+        static fromPrivateKey(privateKey) {
+            return Point.BASE.multiply(normPrivateKeyToScalar(privateKey));
+        }
+        // "Private method", don't use it directly
+        _setWindowSize(windowSize) {
+            this._WINDOW_SIZE = windowSize;
+            pointPrecomputes.delete(this);
+        }
+        // A point on curve is valid if it conforms to equation.
+        assertValidity() {
+            if (this.is0()) {
+                // (0, 1, 0) aka ZERO is invalid in most contexts.
+                // In BLS, ZERO can be serialized, so we allow it.
+                // (0, 0, 0) is wrong representation of ZERO and is always invalid.
+                if (CURVE.allowInfinityPoint && !Fp.is0(this.py))
+                    return;
+                throw new Error('bad point: ZERO');
+            }
+            // Some 3rd-party test vectors require different wording between here & `fromCompressedHex`
+            const { x, y } = this.toAffine();
+            // Check if x, y are valid field elements
+            if (!Fp.isValid(x) || !Fp.isValid(y))
+                throw new Error('bad point: x or y not FE');
+            const left = Fp.sqr(y); // y²
+            const right = weierstrassEquation(x); // x³ + ax + b
+            if (!Fp.eql(left, right))
+                throw new Error('bad point: equation left != right');
+            if (!this.isTorsionFree())
+                throw new Error('bad point: not in prime-order subgroup');
+        }
+        hasEvenY() {
+            const { y } = this.toAffine();
+            if (Fp.isOdd)
+                return !Fp.isOdd(y);
+            throw new Error("Field doesn't support isOdd");
+        }
+        /**
+         * Compare one point to another.
+         */
+        equals(other) {
+            assertPrjPoint(other);
+            const { px: X1, py: Y1, pz: Z1 } = this;
+            const { px: X2, py: Y2, pz: Z2 } = other;
+            const U1 = Fp.eql(Fp.mul(X1, Z2), Fp.mul(X2, Z1));
+            const U2 = Fp.eql(Fp.mul(Y1, Z2), Fp.mul(Y2, Z1));
+            return U1 && U2;
+        }
+        /**
+         * Flips point to one corresponding to (x, -y) in Affine coordinates.
+         */
+        negate() {
+            return new Point(this.px, Fp.neg(this.py), this.pz);
+        }
+        // Renes-Costello-Batina exception-free doubling formula.
+        // There is 30% faster Jacobian formula, but it is not complete.
+        // https://eprint.iacr.org/2015/1060, algorithm 3
+        // Cost: 8M + 3S + 3*a + 2*b3 + 15add.
+        double() {
+            const { a, b } = CURVE;
+            const b3 = Fp.mul(b, _3n);
+            const { px: X1, py: Y1, pz: Z1 } = this;
+            let X3 = Fp.ZERO, Y3 = Fp.ZERO, Z3 = Fp.ZERO; // prettier-ignore
+            let t0 = Fp.mul(X1, X1); // step 1
+            let t1 = Fp.mul(Y1, Y1);
+            let t2 = Fp.mul(Z1, Z1);
+            let t3 = Fp.mul(X1, Y1);
+            t3 = Fp.add(t3, t3); // step 5
+            Z3 = Fp.mul(X1, Z1);
+            Z3 = Fp.add(Z3, Z3);
+            X3 = Fp.mul(a, Z3);
+            Y3 = Fp.mul(b3, t2);
+            Y3 = Fp.add(X3, Y3); // step 10
+            X3 = Fp.sub(t1, Y3);
+            Y3 = Fp.add(t1, Y3);
+            Y3 = Fp.mul(X3, Y3);
+            X3 = Fp.mul(t3, X3);
+            Z3 = Fp.mul(b3, Z3); // step 15
+            t2 = Fp.mul(a, t2);
+            t3 = Fp.sub(t0, t2);
+            t3 = Fp.mul(a, t3);
+            t3 = Fp.add(t3, Z3);
+            Z3 = Fp.add(t0, t0); // step 20
+            t0 = Fp.add(Z3, t0);
+            t0 = Fp.add(t0, t2);
+            t0 = Fp.mul(t0, t3);
+            Y3 = Fp.add(Y3, t0);
+            t2 = Fp.mul(Y1, Z1); // step 25
+            t2 = Fp.add(t2, t2);
+            t0 = Fp.mul(t2, t3);
+            X3 = Fp.sub(X3, t0);
+            Z3 = Fp.mul(t2, t1);
+            Z3 = Fp.add(Z3, Z3); // step 30
+            Z3 = Fp.add(Z3, Z3);
+            return new Point(X3, Y3, Z3);
+        }
+        // Renes-Costello-Batina exception-free addition formula.
+        // There is 30% faster Jacobian formula, but it is not complete.
+        // https://eprint.iacr.org/2015/1060, algorithm 1
+        // Cost: 12M + 0S + 3*a + 3*b3 + 23add.
+        add(other) {
+            assertPrjPoint(other);
+            const { px: X1, py: Y1, pz: Z1 } = this;
+            const { px: X2, py: Y2, pz: Z2 } = other;
+            let X3 = Fp.ZERO, Y3 = Fp.ZERO, Z3 = Fp.ZERO; // prettier-ignore
+            const a = CURVE.a;
+            const b3 = Fp.mul(CURVE.b, _3n);
+            let t0 = Fp.mul(X1, X2); // step 1
+            let t1 = Fp.mul(Y1, Y2);
+            let t2 = Fp.mul(Z1, Z2);
+            let t3 = Fp.add(X1, Y1);
+            let t4 = Fp.add(X2, Y2); // step 5
+            t3 = Fp.mul(t3, t4);
+            t4 = Fp.add(t0, t1);
+            t3 = Fp.sub(t3, t4);
+            t4 = Fp.add(X1, Z1);
+            let t5 = Fp.add(X2, Z2); // step 10
+            t4 = Fp.mul(t4, t5);
+            t5 = Fp.add(t0, t2);
+            t4 = Fp.sub(t4, t5);
+            t5 = Fp.add(Y1, Z1);
+            X3 = Fp.add(Y2, Z2); // step 15
+            t5 = Fp.mul(t5, X3);
+            X3 = Fp.add(t1, t2);
+            t5 = Fp.sub(t5, X3);
+            Z3 = Fp.mul(a, t4);
+            X3 = Fp.mul(b3, t2); // step 20
+            Z3 = Fp.add(X3, Z3);
+            X3 = Fp.sub(t1, Z3);
+            Z3 = Fp.add(t1, Z3);
+            Y3 = Fp.mul(X3, Z3);
+            t1 = Fp.add(t0, t0); // step 25
+            t1 = Fp.add(t1, t0);
+            t2 = Fp.mul(a, t2);
+            t4 = Fp.mul(b3, t4);
+            t1 = Fp.add(t1, t2);
+            t2 = Fp.sub(t0, t2); // step 30
+            t2 = Fp.mul(a, t2);
+            t4 = Fp.add(t4, t2);
+            t0 = Fp.mul(t1, t4);
+            Y3 = Fp.add(Y3, t0);
+            t0 = Fp.mul(t5, t4); // step 35
+            X3 = Fp.mul(t3, X3);
+            X3 = Fp.sub(X3, t0);
+            t0 = Fp.mul(t3, t1);
+            Z3 = Fp.mul(t5, Z3);
+            Z3 = Fp.add(Z3, t0); // step 40
+            return new Point(X3, Y3, Z3);
+        }
+        subtract(other) {
+            return this.add(other.negate());
+        }
+        is0() {
+            return this.equals(Point.ZERO);
+        }
+        wNAF(n) {
+            return wnaf.wNAFCached(this, pointPrecomputes, n, (comp) => {
+                const toInv = Fp.invertBatch(comp.map((p) => p.pz));
+                return comp.map((p, i) => p.toAffine(toInv[i])).map(Point.fromAffine);
+            });
+        }
+        /**
+         * Non-constant-time multiplication. Uses double-and-add algorithm.
+         * It's faster, but should only be used when you don't care about
+         * an exposed private key e.g. sig verification, which works over *public* keys.
+         */
+        multiplyUnsafe(n) {
+            const I = Point.ZERO;
+            if (n === _0n$1)
+                return I;
+            assertGE(n); // Will throw on 0
+            if (n === _1n$2)
+                return this;
+            const { endo } = CURVE;
+            if (!endo)
+                return wnaf.unsafeLadder(this, n);
+            // Apply endomorphism
+            let { k1neg, k1, k2neg, k2 } = endo.splitScalar(n);
+            let k1p = I;
+            let k2p = I;
+            let d = this;
+            while (k1 > _0n$1 || k2 > _0n$1) {
+                if (k1 & _1n$2)
+                    k1p = k1p.add(d);
+                if (k2 & _1n$2)
+                    k2p = k2p.add(d);
+                d = d.double();
+                k1 >>= _1n$2;
+                k2 >>= _1n$2;
+            }
+            if (k1neg)
+                k1p = k1p.negate();
+            if (k2neg)
+                k2p = k2p.negate();
+            k2p = new Point(Fp.mul(k2p.px, endo.beta), k2p.py, k2p.pz);
+            return k1p.add(k2p);
+        }
+        /**
+         * Constant time multiplication.
+         * Uses wNAF method. Windowed method may be 10% faster,
+         * but takes 2x longer to generate and consumes 2x memory.
+         * Uses precomputes when available.
+         * Uses endomorphism for Koblitz curves.
+         * @param scalar by which the point would be multiplied
+         * @returns New point
+         */
+        multiply(scalar) {
+            assertGE(scalar);
+            let n = scalar;
+            let point, fake; // Fake point is used to const-time mult
+            const { endo } = CURVE;
+            if (endo) {
+                const { k1neg, k1, k2neg, k2 } = endo.splitScalar(n);
+                let { p: k1p, f: f1p } = this.wNAF(k1);
+                let { p: k2p, f: f2p } = this.wNAF(k2);
+                k1p = wnaf.constTimeNegate(k1neg, k1p);
+                k2p = wnaf.constTimeNegate(k2neg, k2p);
+                k2p = new Point(Fp.mul(k2p.px, endo.beta), k2p.py, k2p.pz);
+                point = k1p.add(k2p);
+                fake = f1p.add(f2p);
+            }
+            else {
+                const { p, f } = this.wNAF(n);
+                point = p;
+                fake = f;
+            }
+            // Normalize `z` for both points, but return only real one
+            return Point.normalizeZ([point, fake])[0];
+        }
+        /**
+         * Efficiently calculate `aP + bQ`. Unsafe, can expose private key, if used incorrectly.
+         * Not using Strauss-Shamir trick: precomputation tables are faster.
+         * The trick could be useful if both P and Q are not G (not in our case).
+         * @returns non-zero affine point
+         */
+        multiplyAndAddUnsafe(Q, a, b) {
+            const G = Point.BASE; // No Strauss-Shamir trick: we have 10% faster G precomputes
+            const mul = (P, a // Select faster multiply() method
+            ) => (a === _0n$1 || a === _1n$2 || !P.equals(G) ? P.multiplyUnsafe(a) : P.multiply(a));
+            const sum = mul(this, a).add(mul(Q, b));
+            return sum.is0() ? undefined : sum;
+        }
+        // Converts Projective point to affine (x, y) coordinates.
+        // Can accept precomputed Z^-1 - for example, from invertBatch.
+        // (x, y, z) ∋ (x=x/z, y=y/z)
+        toAffine(iz) {
+            const { px: x, py: y, pz: z } = this;
+            const is0 = this.is0();
+            // If invZ was 0, we return zero point. However we still want to execute
+            // all operations, so we replace invZ with a random number, 1.
+            if (iz == null)
+                iz = is0 ? Fp.ONE : Fp.inv(z);
+            const ax = Fp.mul(x, iz);
+            const ay = Fp.mul(y, iz);
+            const zz = Fp.mul(z, iz);
+            if (is0)
+                return { x: Fp.ZERO, y: Fp.ZERO };
+            if (!Fp.eql(zz, Fp.ONE))
+                throw new Error('invZ was invalid');
+            return { x: ax, y: ay };
+        }
+        isTorsionFree() {
+            const { h: cofactor, isTorsionFree } = CURVE;
+            if (cofactor === _1n$2)
+                return true; // No subgroups, always torsion-free
+            if (isTorsionFree)
+                return isTorsionFree(Point, this);
+            throw new Error('isTorsionFree() has not been declared for the elliptic curve');
+        }
+        clearCofactor() {
+            const { h: cofactor, clearCofactor } = CURVE;
+            if (cofactor === _1n$2)
+                return this; // Fast-path
+            if (clearCofactor)
+                return clearCofactor(Point, this);
+            return this.multiplyUnsafe(CURVE.h);
+        }
+        toRawBytes(isCompressed = true) {
+            this.assertValidity();
+            return toBytes(Point, this, isCompressed);
+        }
+        toHex(isCompressed = true) {
+            return bytesToHex$2(this.toRawBytes(isCompressed));
+        }
+    }
+    Point.BASE = new Point(CURVE.Gx, CURVE.Gy, Fp.ONE);
+    Point.ZERO = new Point(Fp.ZERO, Fp.ONE, Fp.ZERO);
+    const _bits = CURVE.nBitLength;
+    const wnaf = wNAF(Point, CURVE.endo ? Math.ceil(_bits / 2) : _bits);
+    // Validate if generator point is on curve
+    return {
+        CURVE,
+        ProjectivePoint: Point,
+        normPrivateKeyToScalar,
+        weierstrassEquation,
+        isWithinCurveOrder,
+    };
+}
+function validateOpts(curve) {
+    const opts = validateBasic(curve);
+    validateObject(opts, {
+        hash: 'hash',
+        hmac: 'function',
+        randomBytes: 'function',
+    }, {
+        bits2int: 'function',
+        bits2int_modN: 'function',
+        lowS: 'boolean',
+    });
+    return Object.freeze({ lowS: true, ...opts });
+}
+function weierstrass(curveDef) {
+    const CURVE = validateOpts(curveDef);
+    const { Fp, n: CURVE_ORDER } = CURVE;
+    const compressedLen = Fp.BYTES + 1; // e.g. 33 for 32
+    const uncompressedLen = 2 * Fp.BYTES + 1; // e.g. 65 for 32
+    function isValidFieldElement(num) {
+        return _0n$1 < num && num < Fp.ORDER; // 0 is banned since it's not invertible FE
+    }
+    function modN(a) {
+        return mod(a, CURVE_ORDER);
+    }
+    function invN(a) {
+        return invert(a, CURVE_ORDER);
+    }
+    const { ProjectivePoint: Point, normPrivateKeyToScalar, weierstrassEquation, isWithinCurveOrder, } = weierstrassPoints({
+        ...CURVE,
+        toBytes(_c, point, isCompressed) {
+            const a = point.toAffine();
+            const x = Fp.toBytes(a.x);
+            const cat = concatBytes$2;
+            if (isCompressed) {
+                return cat(Uint8Array.from([point.hasEvenY() ? 0x02 : 0x03]), x);
+            }
+            else {
+                return cat(Uint8Array.from([0x04]), x, Fp.toBytes(a.y));
+            }
+        },
+        fromBytes(bytes) {
+            const len = bytes.length;
+            const head = bytes[0];
+            const tail = bytes.subarray(1);
+            // this.assertValidity() is done inside of fromHex
+            if (len === compressedLen && (head === 0x02 || head === 0x03)) {
+                const x = bytesToNumberBE(tail);
+                if (!isValidFieldElement(x))
+                    throw new Error('Point is not on curve');
+                const y2 = weierstrassEquation(x); // y² = x³ + ax + b
+                let y;
+                try {
+                    y = Fp.sqrt(y2); // y = y² ^ (p+1)/4
+                }
+                catch (sqrtError) {
+                    const suffix = sqrtError instanceof Error ? ': ' + sqrtError.message : '';
+                    throw new Error('Point is not on curve' + suffix);
+                }
+                const isYOdd = (y & _1n$2) === _1n$2;
+                // ECDSA
+                const isHeadOdd = (head & 1) === 1;
+                if (isHeadOdd !== isYOdd)
+                    y = Fp.neg(y);
+                return { x, y };
+            }
+            else if (len === uncompressedLen && head === 0x04) {
+                const x = Fp.fromBytes(tail.subarray(0, Fp.BYTES));
+                const y = Fp.fromBytes(tail.subarray(Fp.BYTES, 2 * Fp.BYTES));
+                return { x, y };
+            }
+            else {
+                throw new Error(`Point of length ${len} was invalid. Expected ${compressedLen} compressed bytes or ${uncompressedLen} uncompressed bytes`);
+            }
+        },
+    });
+    const numToNByteStr = (num) => bytesToHex$2(numberToBytesBE(num, CURVE.nByteLength));
+    function isBiggerThanHalfOrder(number) {
+        const HALF = CURVE_ORDER >> _1n$2;
+        return number > HALF;
+    }
+    function normalizeS(s) {
+        return isBiggerThanHalfOrder(s) ? modN(-s) : s;
+    }
+    // slice bytes num
+    const slcNum = (b, from, to) => bytesToNumberBE(b.slice(from, to));
+    /**
+     * ECDSA signature with its (r, s) properties. Supports DER & compact representations.
+     */
+    class Signature {
+        constructor(r, s, recovery) {
+            this.r = r;
+            this.s = s;
+            this.recovery = recovery;
+            this.assertValidity();
+        }
+        // pair (bytes of r, bytes of s)
+        static fromCompact(hex) {
+            const l = CURVE.nByteLength;
+            hex = ensureBytes('compactSignature', hex, l * 2);
+            return new Signature(slcNum(hex, 0, l), slcNum(hex, l, 2 * l));
+        }
+        // DER encoded ECDSA signature
+        // https://bitcoin.stackexchange.com/questions/57644/what-are-the-parts-of-a-bitcoin-transaction-input-script
+        static fromDER(hex) {
+            const { r, s } = DER.toSig(ensureBytes('DER', hex));
+            return new Signature(r, s);
+        }
+        assertValidity() {
+            // can use assertGE here
+            if (!isWithinCurveOrder(this.r))
+                throw new Error('r must be 0 < r < CURVE.n');
+            if (!isWithinCurveOrder(this.s))
+                throw new Error('s must be 0 < s < CURVE.n');
+        }
+        addRecoveryBit(recovery) {
+            return new Signature(this.r, this.s, recovery);
+        }
+        recoverPublicKey(msgHash) {
+            const { r, s, recovery: rec } = this;
+            const h = bits2int_modN(ensureBytes('msgHash', msgHash)); // Truncate hash
+            if (rec == null || ![0, 1, 2, 3].includes(rec))
+                throw new Error('recovery id invalid');
+            const radj = rec === 2 || rec === 3 ? r + CURVE.n : r;
+            if (radj >= Fp.ORDER)
+                throw new Error('recovery id 2 or 3 invalid');
+            const prefix = (rec & 1) === 0 ? '02' : '03';
+            const R = Point.fromHex(prefix + numToNByteStr(radj));
+            const ir = invN(radj); // r^-1
+            const u1 = modN(-h * ir); // -hr^-1
+            const u2 = modN(s * ir); // sr^-1
+            const Q = Point.BASE.multiplyAndAddUnsafe(R, u1, u2); // (sr^-1)R-(hr^-1)G = -(hr^-1)G + (sr^-1)
+            if (!Q)
+                throw new Error('point at infinify'); // unsafe is fine: no priv data leaked
+            Q.assertValidity();
+            return Q;
+        }
+        // Signatures should be low-s, to prevent malleability.
+        hasHighS() {
+            return isBiggerThanHalfOrder(this.s);
+        }
+        normalizeS() {
+            return this.hasHighS() ? new Signature(this.r, modN(-this.s), this.recovery) : this;
+        }
+        // DER-encoded
+        toDERRawBytes() {
+            return hexToBytes$2(this.toDERHex());
+        }
+        toDERHex() {
+            return DER.hexFromSig({ r: this.r, s: this.s });
+        }
+        // padded bytes of r, then padded bytes of s
+        toCompactRawBytes() {
+            return hexToBytes$2(this.toCompactHex());
+        }
+        toCompactHex() {
+            return numToNByteStr(this.r) + numToNByteStr(this.s);
+        }
+    }
+    const utils = {
+        isValidPrivateKey(privateKey) {
+            try {
+                normPrivateKeyToScalar(privateKey);
+                return true;
+            }
+            catch (error) {
+                return false;
+            }
+        },
+        normPrivateKeyToScalar: normPrivateKeyToScalar,
+        /**
+         * Produces cryptographically secure private key from random of size
+         * (groupLen + ceil(groupLen / 2)) with modulo bias being negligible.
+         */
+        randomPrivateKey: () => {
+            const length = getMinHashLength(CURVE.n);
+            return mapHashToField(CURVE.randomBytes(length), CURVE.n);
+        },
+        /**
+         * Creates precompute table for an arbitrary EC point. Makes point "cached".
+         * Allows to massively speed-up `point.multiply(scalar)`.
+         * @returns cached point
+         * @example
+         * const fast = utils.precompute(8, ProjectivePoint.fromHex(someonesPubKey));
+         * fast.multiply(privKey); // much faster ECDH now
+         */
+        precompute(windowSize = 8, point = Point.BASE) {
+            point._setWindowSize(windowSize);
+            point.multiply(BigInt(3)); // 3 is arbitrary, just need any number here
+            return point;
+        },
+    };
+    /**
+     * Computes public key for a private key. Checks for validity of the private key.
+     * @param privateKey private key
+     * @param isCompressed whether to return compact (default), or full key
+     * @returns Public key, full when isCompressed=false; short when isCompressed=true
+     */
+    function getPublicKey(privateKey, isCompressed = true) {
+        return Point.fromPrivateKey(privateKey).toRawBytes(isCompressed);
+    }
+    /**
+     * Quick and dirty check for item being public key. Does not validate hex, or being on-curve.
+     */
+    function isProbPub(item) {
+        const arr = isBytes(item);
+        const str = typeof item === 'string';
+        const len = (arr || str) && item.length;
+        if (arr)
+            return len === compressedLen || len === uncompressedLen;
+        if (str)
+            return len === 2 * compressedLen || len === 2 * uncompressedLen;
+        if (item instanceof Point)
+            return true;
+        return false;
+    }
+    /**
+     * ECDH (Elliptic Curve Diffie Hellman).
+     * Computes shared public key from private key and public key.
+     * Checks: 1) private key validity 2) shared key is on-curve.
+     * Does NOT hash the result.
+     * @param privateA private key
+     * @param publicB different public key
+     * @param isCompressed whether to return compact (default), or full key
+     * @returns shared public key
+     */
+    function getSharedSecret(privateA, publicB, isCompressed = true) {
+        if (isProbPub(privateA))
+            throw new Error('first arg must be private key');
+        if (!isProbPub(publicB))
+            throw new Error('second arg must be public key');
+        const b = Point.fromHex(publicB); // check for being on-curve
+        return b.multiply(normPrivateKeyToScalar(privateA)).toRawBytes(isCompressed);
+    }
+    // RFC6979: ensure ECDSA msg is X bytes and < N. RFC suggests optional truncating via bits2octets.
+    // FIPS 186-4 4.6 suggests the leftmost min(nBitLen, outLen) bits, which matches bits2int.
+    // bits2int can produce res>N, we can do mod(res, N) since the bitLen is the same.
+    // int2octets can't be used; pads small msgs with 0: unacceptatble for trunc as per RFC vectors
+    const bits2int = CURVE.bits2int ||
+        function (bytes) {
+            // For curves with nBitLength % 8 !== 0: bits2octets(bits2octets(m)) !== bits2octets(m)
+            // for some cases, since bytes.length * 8 is not actual bitLength.
+            const num = bytesToNumberBE(bytes); // check for == u8 done here
+            const delta = bytes.length * 8 - CURVE.nBitLength; // truncate to nBitLength leftmost bits
+            return delta > 0 ? num >> BigInt(delta) : num;
+        };
+    const bits2int_modN = CURVE.bits2int_modN ||
+        function (bytes) {
+            return modN(bits2int(bytes)); // can't use bytesToNumberBE here
+        };
+    // NOTE: pads output with zero as per spec
+    const ORDER_MASK = bitMask(CURVE.nBitLength);
+    /**
+     * Converts to bytes. Checks if num in `[0..ORDER_MASK-1]` e.g.: `[0..2^256-1]`.
+     */
+    function int2octets(num) {
+        if (typeof num !== 'bigint')
+            throw new Error('bigint expected');
+        if (!(_0n$1 <= num && num < ORDER_MASK))
+            throw new Error(`bigint expected < 2^${CURVE.nBitLength}`);
+        // works with order, can have different size than numToField!
+        return numberToBytesBE(num, CURVE.nByteLength);
+    }
+    // Steps A, D of RFC6979 3.2
+    // Creates RFC6979 seed; converts msg/privKey to numbers.
+    // Used only in sign, not in verify.
+    // NOTE: we cannot assume here that msgHash has same amount of bytes as curve order, this will be wrong at least for P521.
+    // Also it can be bigger for P224 + SHA256
+    function prepSig(msgHash, privateKey, opts = defaultSigOpts) {
+        if (['recovered', 'canonical'].some((k) => k in opts))
+            throw new Error('sign() legacy options not supported');
+        const { hash, randomBytes } = CURVE;
+        let { lowS, prehash, extraEntropy: ent } = opts; // generates low-s sigs by default
+        if (lowS == null)
+            lowS = true; // RFC6979 3.2: we skip step A, because we already provide hash
+        msgHash = ensureBytes('msgHash', msgHash);
+        if (prehash)
+            msgHash = ensureBytes('prehashed msgHash', hash(msgHash));
+        // We can't later call bits2octets, since nested bits2int is broken for curves
+        // with nBitLength % 8 !== 0. Because of that, we unwrap it here as int2octets call.
+        // const bits2octets = (bits) => int2octets(bits2int_modN(bits))
+        const h1int = bits2int_modN(msgHash);
+        const d = normPrivateKeyToScalar(privateKey); // validate private key, convert to bigint
+        const seedArgs = [int2octets(d), int2octets(h1int)];
+        // extraEntropy. RFC6979 3.6: additional k' (optional).
+        if (ent != null && ent !== false) {
+            // K = HMAC_K(V || 0x00 || int2octets(x) || bits2octets(h1) || k')
+            const e = ent === true ? randomBytes(Fp.BYTES) : ent; // generate random bytes OR pass as-is
+            seedArgs.push(ensureBytes('extraEntropy', e)); // check for being bytes
+        }
+        const seed = concatBytes$2(...seedArgs); // Step D of RFC6979 3.2
+        const m = h1int; // NOTE: no need to call bits2int second time here, it is inside truncateHash!
+        // Converts signature params into point w r/s, checks result for validity.
+        function k2sig(kBytes) {
+            // RFC 6979 Section 3.2, step 3: k = bits2int(T)
+            const k = bits2int(kBytes); // Cannot use fields methods, since it is group element
+            if (!isWithinCurveOrder(k))
+                return; // Important: all mod() calls here must be done over N
+            const ik = invN(k); // k^-1 mod n
+            const q = Point.BASE.multiply(k).toAffine(); // q = Gk
+            const r = modN(q.x); // r = q.x mod n
+            if (r === _0n$1)
+                return;
+            // Can use scalar blinding b^-1(bm + bdr) where b ∈ [1,q−1] according to
+            // https://tches.iacr.org/index.php/TCHES/article/view/7337/6509. We've decided against it:
+            // a) dependency on CSPRNG b) 15% slowdown c) doesn't really help since bigints are not CT
+            const s = modN(ik * modN(m + r * d)); // Not using blinding here
+            if (s === _0n$1)
+                return;
+            let recovery = (q.x === r ? 0 : 2) | Number(q.y & _1n$2); // recovery bit (2 or 3, when q.x > n)
+            let normS = s;
+            if (lowS && isBiggerThanHalfOrder(s)) {
+                normS = normalizeS(s); // if lowS was passed, ensure s is always
+                recovery ^= 1; // // in the bottom half of N
+            }
+            return new Signature(r, normS, recovery); // use normS, not s
+        }
+        return { seed, k2sig };
+    }
+    const defaultSigOpts = { lowS: CURVE.lowS, prehash: false };
+    const defaultVerOpts = { lowS: CURVE.lowS, prehash: false };
+    /**
+     * Signs message hash with a private key.
+     * ```
+     * sign(m, d, k) where
+     *   (x, y) = G × k
+     *   r = x mod n
+     *   s = (m + dr)/k mod n
+     * ```
+     * @param msgHash NOT message. msg needs to be hashed to `msgHash`, or use `prehash`.
+     * @param privKey private key
+     * @param opts lowS for non-malleable sigs. extraEntropy for mixing randomness into k. prehash will hash first arg.
+     * @returns signature with recovery param
+     */
+    function sign(msgHash, privKey, opts = defaultSigOpts) {
+        const { seed, k2sig } = prepSig(msgHash, privKey, opts); // Steps A, D of RFC6979 3.2.
+        const C = CURVE;
+        const drbg = createHmacDrbg(C.hash.outputLen, C.nByteLength, C.hmac);
+        return drbg(seed, k2sig); // Steps B, C, D, E, F, G
+    }
+    // Enable precomputes. Slows down first publicKey computation by 20ms.
+    Point.BASE._setWindowSize(8);
+    // utils.precompute(8, ProjectivePoint.BASE)
+    /**
+     * Verifies a signature against message hash and public key.
+     * Rejects lowS signatures by default: to override,
+     * specify option `{lowS: false}`. Implements section 4.1.4 from https://www.secg.org/sec1-v2.pdf:
+     *
+     * ```
+     * verify(r, s, h, P) where
+     *   U1 = hs^-1 mod n
+     *   U2 = rs^-1 mod n
+     *   R = U1⋅G - U2⋅P
+     *   mod(R.x, n) == r
+     * ```
+     */
+    function verify(signature, msgHash, publicKey, opts = defaultVerOpts) {
+        const sg = signature;
+        msgHash = ensureBytes('msgHash', msgHash);
+        publicKey = ensureBytes('publicKey', publicKey);
+        if ('strict' in opts)
+            throw new Error('options.strict was renamed to lowS');
+        const { lowS, prehash } = opts;
+        let _sig = undefined;
+        let P;
+        try {
+            if (typeof sg === 'string' || isBytes(sg)) {
+                // Signature can be represented in 2 ways: compact (2*nByteLength) & DER (variable-length).
+                // Since DER can also be 2*nByteLength bytes, we check for it first.
+                try {
+                    _sig = Signature.fromDER(sg);
+                }
+                catch (derError) {
+                    if (!(derError instanceof DER.Err))
+                        throw derError;
+                    _sig = Signature.fromCompact(sg);
+                }
+            }
+            else if (typeof sg === 'object' && typeof sg.r === 'bigint' && typeof sg.s === 'bigint') {
+                const { r, s } = sg;
+                _sig = new Signature(r, s);
+            }
+            else {
+                throw new Error('PARSE');
+            }
+            P = Point.fromHex(publicKey);
+        }
+        catch (error) {
+            if (error.message === 'PARSE')
+                throw new Error(`signature must be Signature instance, Uint8Array or hex string`);
+            return false;
+        }
+        if (lowS && _sig.hasHighS())
+            return false;
+        if (prehash)
+            msgHash = CURVE.hash(msgHash);
+        const { r, s } = _sig;
+        const h = bits2int_modN(msgHash); // Cannot use fields methods, since it is group element
+        const is = invN(s); // s^-1
+        const u1 = modN(h * is); // u1 = hs^-1 mod n
+        const u2 = modN(r * is); // u2 = rs^-1 mod n
+        const R = Point.BASE.multiplyAndAddUnsafe(P, u1, u2)?.toAffine(); // R = u1⋅G + u2⋅P
+        if (!R)
+            return false;
+        const v = modN(R.x);
+        return v === r;
+    }
+    return {
+        CURVE,
+        getPublicKey,
+        getSharedSecret,
+        sign,
+        verify,
+        ProjectivePoint: Point,
+        Signature,
+        utils,
+    };
+}
+
+// HMAC (RFC 2104)
+class HMAC extends Hash {
+    constructor(hash$1, _key) {
+        super();
+        this.finished = false;
+        this.destroyed = false;
+        hash(hash$1);
+        const key = toBytes$2(_key);
+        this.iHash = hash$1.create();
+        if (typeof this.iHash.update !== 'function')
+            throw new Error('Expected instance of class which extends utils.Hash');
+        this.blockLen = this.iHash.blockLen;
+        this.outputLen = this.iHash.outputLen;
+        const blockLen = this.blockLen;
+        const pad = new Uint8Array(blockLen);
+        // blockLen can be bigger than outputLen
+        pad.set(key.length > blockLen ? hash$1.create().update(key).digest() : key);
+        for (let i = 0; i < pad.length; i++)
+            pad[i] ^= 0x36;
+        this.iHash.update(pad);
+        // By doing update (processing of first block) of outer hash here we can re-use it between multiple calls via clone
+        this.oHash = hash$1.create();
+        // Undo internal XOR && apply outer XOR
+        for (let i = 0; i < pad.length; i++)
+            pad[i] ^= 0x36 ^ 0x5c;
+        this.oHash.update(pad);
+        pad.fill(0);
+    }
+    update(buf) {
+        exists(this);
+        this.iHash.update(buf);
+        return this;
+    }
+    digestInto(out) {
+        exists(this);
+        bytes(out, this.outputLen);
+        this.finished = true;
+        this.iHash.digestInto(out);
+        this.oHash.update(out);
+        this.oHash.digestInto(out);
+        this.destroy();
+    }
+    digest() {
+        const out = new Uint8Array(this.oHash.outputLen);
+        this.digestInto(out);
+        return out;
+    }
+    _cloneInto(to) {
+        // Create new instance without calling constructor since key already in state and we don't know it.
+        to || (to = Object.create(Object.getPrototypeOf(this), {}));
+        const { oHash, iHash, finished, destroyed, blockLen, outputLen } = this;
+        to = to;
+        to.finished = finished;
+        to.destroyed = destroyed;
+        to.blockLen = blockLen;
+        to.outputLen = outputLen;
+        to.oHash = oHash._cloneInto(to.oHash);
+        to.iHash = iHash._cloneInto(to.iHash);
+        return to;
+    }
+    destroy() {
+        this.destroyed = true;
+        this.oHash.destroy();
+        this.iHash.destroy();
+    }
+}
+/**
+ * HMAC: RFC2104 message authentication code.
+ * @param hash - function that would be used e.g. sha256
+ * @param key - message key
+ * @param message - message data
+ */
+const hmac = (hash, key, message) => new HMAC(hash, key).update(message).digest();
+hmac.create = (hash, key) => new HMAC(hash, key);
+
+/*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
+// connects noble-curves to noble-hashes
+function getHash(hash) {
+    return {
+        hash,
+        hmac: (key, ...msgs) => hmac(hash, key, concatBytes$3(...msgs)),
+        randomBytes,
+    };
+}
+function createCurve(curveDef, defHash) {
+    const create = (hash) => weierstrass({ ...curveDef, ...getHash(hash) });
+    return Object.freeze({ ...create(defHash), create });
+}
+
+/*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
+const secp256k1P = BigInt('0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f');
+const secp256k1N = BigInt('0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141');
+const _1n$1 = BigInt(1);
+const _2n$1 = BigInt(2);
+const divNearest = (a, b) => (a + b / _2n$1) / b;
+/**
+ * √n = n^((p+1)/4) for fields p = 3 mod 4. We unwrap the loop and multiply bit-by-bit.
+ * (P+1n/4n).toString(2) would produce bits [223x 1, 0, 22x 1, 4x 0, 11, 00]
+ */
+function sqrtMod(y) {
+    const P = secp256k1P;
+    // prettier-ignore
+    const _3n = BigInt(3), _6n = BigInt(6), _11n = BigInt(11), _22n = BigInt(22);
+    // prettier-ignore
+    const _23n = BigInt(23), _44n = BigInt(44), _88n = BigInt(88);
+    const b2 = (y * y * y) % P; // x^3, 11
+    const b3 = (b2 * b2 * y) % P; // x^7
+    const b6 = (pow2(b3, _3n, P) * b3) % P;
+    const b9 = (pow2(b6, _3n, P) * b3) % P;
+    const b11 = (pow2(b9, _2n$1, P) * b2) % P;
+    const b22 = (pow2(b11, _11n, P) * b11) % P;
+    const b44 = (pow2(b22, _22n, P) * b22) % P;
+    const b88 = (pow2(b44, _44n, P) * b44) % P;
+    const b176 = (pow2(b88, _88n, P) * b88) % P;
+    const b220 = (pow2(b176, _44n, P) * b44) % P;
+    const b223 = (pow2(b220, _3n, P) * b3) % P;
+    const t1 = (pow2(b223, _23n, P) * b22) % P;
+    const t2 = (pow2(t1, _6n, P) * b2) % P;
+    const root = pow2(t2, _2n$1, P);
+    if (!Fp.eql(Fp.sqr(root), y))
+        throw new Error('Cannot find square root');
+    return root;
+}
+const Fp = Field(secp256k1P, undefined, undefined, { sqrt: sqrtMod });
+const secp256k1 = createCurve({
+    a: BigInt(0), // equation params: a, b
+    b: BigInt(7), // Seem to be rigid: bitcointalk.org/index.php?topic=289795.msg3183975#msg3183975
+    Fp, // Field's prime: 2n**256n - 2n**32n - 2n**9n - 2n**8n - 2n**7n - 2n**6n - 2n**4n - 1n
+    n: secp256k1N, // Curve order, total count of valid points in the field
+    // Base point (x, y) aka generator point
+    Gx: BigInt('55066263022277343669578718895168534326250603453777594175500187360389116729240'),
+    Gy: BigInt('32670510020758816978083085130507043184471273380659243275938904335757337482424'),
+    h: BigInt(1), // Cofactor
+    lowS: true, // Allow only low-S signatures by default in sign() and verify()
+    /**
+     * secp256k1 belongs to Koblitz curves: it has efficiently computable endomorphism.
+     * Endomorphism uses 2x less RAM, speeds up precomputation by 2x and ECDH / key recovery by 20%.
+     * For precomputed wNAF it trades off 1/2 init time & 1/3 ram for 20% perf hit.
+     * Explanation: https://gist.github.com/paulmillr/eb670806793e84df628a7c434a873066
+     */
+    endo: {
+        beta: BigInt('0x7ae96a2b657c07106e64479eac3434e99cf0497512f58995c1396c28719501ee'),
+        splitScalar: (k) => {
+            const n = secp256k1N;
+            const a1 = BigInt('0x3086d221a7d46bcde86c90e49284eb15');
+            const b1 = -_1n$1 * BigInt('0xe4437ed6010e88286f547fa90abfe4c3');
+            const a2 = BigInt('0x114ca50f7a8e2f3f657c1108d9d44cfd8');
+            const b2 = a1;
+            const POW_2_128 = BigInt('0x100000000000000000000000000000000'); // (2n**128n).toString(16)
+            const c1 = divNearest(b2 * k, n);
+            const c2 = divNearest(-b1 * k, n);
+            let k1 = mod(k - c1 * a1 - c2 * a2, n);
+            let k2 = mod(-c1 * b1 - c2 * b2, n);
+            const k1neg = k1 > POW_2_128;
+            const k2neg = k2 > POW_2_128;
+            if (k1neg)
+                k1 = n - k1;
+            if (k2neg)
+                k2 = n - k2;
+            if (k1 > POW_2_128 || k2 > POW_2_128) {
+                throw new Error('splitScalar: Endomorphism failed, k=' + k);
+            }
+            return { k1neg, k1, k2neg, k2 };
+        },
+    },
+}, sha256);
+// Schnorr signatures are superior to ECDSA from above. Below is Schnorr-specific BIP0340 code.
+// https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki
+BigInt(0);
+secp256k1.ProjectivePoint;
+
+assert$1.bool;
+assert$1.bytes;
+// buf.toString('utf8') -> bytesToUtf8(buf)
+function bytesToUtf8(data) {
+    if (!(data instanceof Uint8Array)) {
+        throw new TypeError(`bytesToUtf8 expected Uint8Array, got ${typeof data}`);
+    }
+    return new TextDecoder().decode(data);
+}
+// buf.equals(buf2) -> equalsBytes(buf, buf2)
+function equalsBytes(a, b) {
+    if (a.length !== b.length) {
+        return false;
+    }
+    for (let i = 0; i < a.length; i++) {
+        if (a[i] !== b[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+// Internal utils
+function wrapHash(hash) {
+    return (msg) => {
+        assert$1.bytes(msg);
+        return hash(msg);
+    };
+}
+// TODO(v3): switch away from node crypto, remove this unnecessary variable.
+(() => {
+    const webCrypto = typeof globalThis === "object" && "crypto" in globalThis ? globalThis.crypto : undefined;
+    const nodeRequire = typeof module !== "undefined" &&
+        typeof module.require === "function" &&
+        module.require.bind(module);
+    return {
+        node: nodeRequire && !webCrypto ? nodeRequire("crypto") : undefined,
+        web: webCrypto
+    };
+})();
+
+/*
+The MIT License
+
+Copyright (c) 2016 Nick Dodson. nickdodson.com
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE
+ */
+/**
+ * Pads a `String` to have an even length
+ * @param value
+ * @return output
+ */
+function padToEven$1(value) {
+    let a = value;
+    if (typeof a !== 'string') {
+        throw new Error(`[padToEven] value must be type 'string', received ${typeof a}`);
+    }
+    if (a.length % 2)
+        a = `0${a}`;
+    return a;
+}
+/**
+ * Is the string a hex string.
+ *
+ * @param  value
+ * @param  length
+ * @returns  output the string is a hex string
+ */
+function isHexString(value, length) {
+    if (typeof value !== 'string' || !value.match(/^0x[0-9A-Fa-f]*$/))
+        return false;
+    if (typeof length !== 'undefined' && length > 0 && value.length !== 2 + 2 * length)
+        return false;
+    return true;
+}
+
+const BIGINT_0 = BigInt(0);
+/**
+ * @deprecated
+ */
+const bytesToUnprefixedHex = bytesToHex$3;
+// hexToBytes cache
+const hexToBytesMapFirstKey = {};
+const hexToBytesMapSecondKey = {};
+for (let i = 0; i < 16; i++) {
+    const vSecondKey = i;
+    const vFirstKey = i * 16;
+    const key = i.toString(16).toLowerCase();
+    hexToBytesMapSecondKey[key] = vSecondKey;
+    hexToBytesMapSecondKey[key.toUpperCase()] = vSecondKey;
+    hexToBytesMapFirstKey[key] = vFirstKey;
+    hexToBytesMapFirstKey[key.toUpperCase()] = vFirstKey;
+}
+/**
+ * NOTE: only use this function if the string is even, and only consists of hex characters
+ * If this is not the case, this function could return weird results
+ * @deprecated
+ */
+function _unprefixedHexToBytes(hex) {
+    const byteLen = hex.length;
+    const bytes = new Uint8Array(byteLen / 2);
+    for (let i = 0; i < byteLen; i += 2) {
+        bytes[i / 2] = hexToBytesMapFirstKey[hex[i]] + hexToBytesMapSecondKey[hex[i + 1]];
+    }
+    return bytes;
+}
+/**
+ * @deprecated
+ */
+const unprefixedHexToBytes = (inp) => {
+    if (inp.slice(0, 2) === '0x') {
+        throw new Error('hex string is prefixed with 0x, should be unprefixed');
+    }
+    else {
+        return _unprefixedHexToBytes(padToEven$1(inp));
+    }
+};
+/****************  Borrowed from @chainsafe/ssz */
+// Caching this info costs about ~1000 bytes and speeds up toHexString() by x6
+const hexByByte = Array.from({ length: 256 }, (v, i) => i.toString(16).padStart(2, '0'));
+const bytesToHex$1 = (bytes) => {
+    let hex = '0x';
+    if (bytes === undefined || bytes.length === 0)
+        return hex;
+    for (const byte of bytes) {
+        hex += hexByByte[byte];
+    }
+    return hex;
+};
+for (let i = 0; i <= 256 * 256 - 1; i++) {
+    BigInt(i);
+}
+const hexToBytes$1 = (hex) => {
+    if (typeof hex !== 'string') {
+        throw new Error(`hex argument type ${typeof hex} must be of type string`);
+    }
+    if (!/^0x[0-9a-fA-F]*$/.test(hex)) {
+        throw new Error(`Input must be a 0x-prefixed hexadecimal string, got ${hex}`);
+    }
+    hex = hex.slice(2);
+    if (hex.length % 2 !== 0) {
+        hex = padToEven$1(hex);
+    }
+    return _unprefixedHexToBytes(hex);
+};
+/******************************************/
+/**
+ * Converts a {@link number} into a {@link PrefixedHexString}
+ * @param {number} i
+ * @return {PrefixedHexString}
+ */
+const intToHex = (i) => {
+    if (!Number.isSafeInteger(i) || i < 0) {
+        throw new Error(`Received an invalid integer type: ${i}`);
+    }
+    return `0x${i.toString(16)}`;
+};
+/**
+ * Converts an {@link number} to a {@link Uint8Array}
+ * @param {Number} i
+ * @return {Uint8Array}
+ */
+const intToBytes = (i) => {
+    const hex = intToHex(i);
+    return hexToBytes$1(hex);
+};
+/**
+ * Attempts to turn a value into a `Uint8Array`.
+ * Inputs supported: `Buffer`, `Uint8Array`, `String` (hex-prefixed), `Number`, null/undefined, `BigInt` and other objects
+ * with a `toArray()` or `toBytes()` method.
+ * @param {ToBytesInputTypes} v the value
+ * @return {Uint8Array}
+ */
+const toBytes$1 = (v) => {
+    if (v === null || v === undefined) {
+        return new Uint8Array();
+    }
+    if (Array.isArray(v) || v instanceof Uint8Array) {
+        return Uint8Array.from(v);
+    }
+    if (typeof v === 'string') {
+        if (!isHexString(v)) {
+            throw new Error(`Cannot convert string to Uint8Array. toBytes only supports 0x-prefixed hex strings and this string was given: ${v}`);
+        }
+        return hexToBytes$1(v);
+    }
+    if (typeof v === 'number') {
+        return intToBytes(v);
+    }
+    if (typeof v === 'bigint') {
+        if (v < BIGINT_0) {
+            throw new Error(`Cannot convert negative bigint to Uint8Array. Given: ${v}`);
+        }
+        let n = v.toString(16);
+        if (n.length % 2)
+            n = '0' + n;
+        return unprefixedHexToBytes(n);
+    }
+    if (v.toBytes !== undefined) {
+        // converts a `TransformableToBytes` object to a Uint8Array
+        return v.toBytes();
+    }
+    throw new Error('invalid type');
+};
+/**
+ * This mirrors the functionality of the `ethereum-cryptography` export except
+ * it skips the check to validate that every element of `arrays` is indead a `uint8Array`
+ * Can give small performance gains on large arrays
+ * @param {Uint8Array[]} arrays an array of Uint8Arrays
+ * @returns {Uint8Array} one Uint8Array with all the elements of the original set
+ * works like `Buffer.concat`
+ */
+const concatBytes$1 = (...arrays) => {
+    if (arrays.length === 1)
+        return arrays[0];
+    const length = arrays.reduce((a, arr) => a + arr.length, 0);
+    const result = new Uint8Array(length);
+    for (let i = 0, pad = 0; i < arrays.length; i++) {
+        const arr = arrays[i];
+        result.set(arr, pad);
+        pad += arr.length;
+    }
+    return result;
+};
+
+/**
+ * 2^64-1
+ */
+BigInt('0xffffffffffffffff');
+/**
+ * The max integer that the evm can handle (2^256-1)
+ */
+BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff');
+/**
+ * The max integer that the evm can handle (2^256-1) as a bigint
+ * 2^256-1 equals to 340282366920938463463374607431768211455
+ * We use literal value instead of calculated value for compatibility issue.
+ */
+BigInt('115792089237316195423570985008687907853269984665640564039457584007913129639935');
+secp256k1.CURVE.n;
+secp256k1.CURVE.n / BigInt(2);
+/**
+ * 2^256
+ */
+BigInt('0x10000000000000000000000000000000000000000000000000000000000000000');
+/**
+ * Keccak-256 hash of null
+ */
+const KECCAK256_NULL_S = '0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470';
+/**
+ * Keccak-256 hash of null
+ */
+hexToBytes$1(KECCAK256_NULL_S);
+/**
+ * Keccak-256 of an RLP of an empty array
+ */
+const KECCAK256_RLP_ARRAY_S = '0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347';
+/**
+ * Keccak-256 of an RLP of an empty array
+ */
+hexToBytes$1(KECCAK256_RLP_ARRAY_S);
+/**
+ * Keccak-256 hash of the RLP of null
+ */
+const KECCAK256_RLP_S = '0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421';
+/**
+ * Keccak-256 hash of the RLP of null
+ */
+hexToBytes$1(KECCAK256_RLP_S);
+/**
+ *  RLP encoded empty string
+ */
+const RLP_EMPTY_STRING = Uint8Array.from([0x80]);
+/**
+ * BigInt constants
+ */
+BigInt(-1);
+BigInt(0);
+BigInt(1);
+BigInt(2);
+BigInt(3);
+BigInt(7);
+BigInt(8);
+BigInt(27);
+BigInt(28);
+BigInt(31);
+BigInt(32);
+BigInt(64);
+BigInt(128);
+BigInt(255);
+BigInt(256);
+BigInt(96);
+BigInt(100);
+BigInt(160);
+BigInt(224);
+BigInt(79228162514264337593543950336);
+BigInt(1461501637330902918203684832716283019655932542976);
+BigInt(26959946667150639794667015087019630673637144422540572481103610249216);
+
+/** Easy conversion from Gwei to wei */
+BigInt(1000000000);
+
+/**
+ * RLP Encoding based on https://ethereum.org/en/developers/docs/data-structures-and-encoding/rlp/
+ * This function takes in data, converts it to Uint8Array if not,
+ * and adds a length for recursion.
+ * @param input Will be converted to Uint8Array
+ * @returns Uint8Array of encoded data
+ **/
+function encode(input) {
+    if (Array.isArray(input)) {
+        const output = [];
+        let outputLength = 0;
+        for (let i = 0; i < input.length; i++) {
+            const encoded = encode(input[i]);
+            output.push(encoded);
+            outputLength += encoded.length;
+        }
+        return concatBytes(encodeLength(outputLength, 192), ...output);
+    }
+    const inputBuf = toBytes(input);
+    if (inputBuf.length === 1 && inputBuf[0] < 128) {
+        return inputBuf;
+    }
+    return concatBytes(encodeLength(inputBuf.length, 128), inputBuf);
+}
+/**
+ * Slices a Uint8Array, throws if the slice goes out-of-bounds of the Uint8Array.
+ * E.g. `safeSlice(hexToBytes('aa'), 1, 2)` will throw.
+ * @param input
+ * @param start
+ * @param end
+ */
+function safeSlice(input, start, end) {
+    if (end > input.length) {
+        throw new Error('invalid RLP (safeSlice): end slice of Uint8Array out-of-bounds');
+    }
+    return input.slice(start, end);
+}
+/**
+ * Parse integers. Check if there is no leading zeros
+ * @param v The value to parse
+ */
+function decodeLength(v) {
+    if (v[0] === 0) {
+        throw new Error('invalid RLP: extra zeros');
+    }
+    return parseHexByte(bytesToHex(v));
+}
+function encodeLength(len, offset) {
+    if (len < 56) {
+        return Uint8Array.from([len + offset]);
+    }
+    const hexLength = numberToHex(len);
+    const lLength = hexLength.length / 2;
+    const firstByte = numberToHex(offset + 55 + lLength);
+    return Uint8Array.from(hexToBytes(firstByte + hexLength));
+}
+function decode$1(input, stream = false) {
+    if (typeof input === 'undefined' || input === null || input.length === 0) {
+        return Uint8Array.from([]);
+    }
+    const inputBytes = toBytes(input);
+    const decoded = _decode(inputBytes);
+    if (stream) {
+        return {
+            data: decoded.data,
+            remainder: decoded.remainder.slice(),
+        };
+    }
+    if (decoded.remainder.length !== 0) {
+        throw new Error('invalid RLP: remainder must be zero');
+    }
+    return decoded.data;
+}
+/** Decode an input with RLP */
+function _decode(input) {
+    let length, llength, data, innerRemainder, d;
+    const decoded = [];
+    const firstByte = input[0];
+    if (firstByte <= 0x7f) {
+        // a single byte whose value is in the [0x00, 0x7f] range, that byte is its own RLP encoding.
+        return {
+            data: input.slice(0, 1),
+            remainder: input.subarray(1),
+        };
+    }
+    else if (firstByte <= 0xb7) {
+        // string is 0-55 bytes long. A single byte with value 0x80 plus the length of the string followed by the string
+        // The range of the first byte is [0x80, 0xb7]
+        length = firstByte - 0x7f;
+        // set 0x80 null to 0
+        if (firstByte === 0x80) {
+            data = Uint8Array.from([]);
+        }
+        else {
+            data = safeSlice(input, 1, length);
+        }
+        if (length === 2 && data[0] < 0x80) {
+            throw new Error('invalid RLP encoding: invalid prefix, single byte < 0x80 are not prefixed');
+        }
+        return {
+            data,
+            remainder: input.subarray(length),
+        };
+    }
+    else if (firstByte <= 0xbf) {
+        // string is greater than 55 bytes long. A single byte with the value (0xb7 plus the length of the length),
+        // followed by the length, followed by the string
+        llength = firstByte - 0xb6;
+        if (input.length - 1 < llength) {
+            throw new Error('invalid RLP: not enough bytes for string length');
+        }
+        length = decodeLength(safeSlice(input, 1, llength));
+        if (length <= 55) {
+            throw new Error('invalid RLP: expected string length to be greater than 55');
+        }
+        data = safeSlice(input, llength, length + llength);
+        return {
+            data,
+            remainder: input.subarray(length + llength),
+        };
+    }
+    else if (firstByte <= 0xf7) {
+        // a list between 0-55 bytes long
+        length = firstByte - 0xbf;
+        innerRemainder = safeSlice(input, 1, length);
+        while (innerRemainder.length) {
+            d = _decode(innerRemainder);
+            decoded.push(d.data);
+            innerRemainder = d.remainder;
+        }
+        return {
+            data: decoded,
+            remainder: input.subarray(length),
+        };
+    }
+    else {
+        // a list over 55 bytes long
+        llength = firstByte - 0xf6;
+        length = decodeLength(safeSlice(input, 1, llength));
+        if (length < 56) {
+            throw new Error('invalid RLP: encoded list too short');
+        }
+        const totalLength = llength + length;
+        if (totalLength > input.length) {
+            throw new Error('invalid RLP: total length is larger than the data');
+        }
+        innerRemainder = safeSlice(input, llength, totalLength);
+        while (innerRemainder.length) {
+            d = _decode(innerRemainder);
+            decoded.push(d.data);
+            innerRemainder = d.remainder;
+        }
+        return {
+            data: decoded,
+            remainder: input.subarray(totalLength),
+        };
+    }
+}
+const cachedHexes = Array.from({ length: 256 }, (_v, i) => i.toString(16).padStart(2, '0'));
+function bytesToHex(uint8a) {
+    // Pre-caching chars with `cachedHexes` speeds this up 6x
+    let hex = '';
+    for (let i = 0; i < uint8a.length; i++) {
+        hex += cachedHexes[uint8a[i]];
+    }
+    return hex;
+}
+function parseHexByte(hexByte) {
+    const byte = Number.parseInt(hexByte, 16);
+    if (Number.isNaN(byte))
+        throw new Error('Invalid byte sequence');
+    return byte;
+}
+// Caching slows it down 2-3x
+function hexToBytes(hex) {
+    if (typeof hex !== 'string') {
+        throw new TypeError('hexToBytes: expected string, got ' + typeof hex);
+    }
+    if (hex.length % 2)
+        throw new Error('hexToBytes: received invalid unpadded hex');
+    const array = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < array.length; i++) {
+        const j = i * 2;
+        array[i] = parseHexByte(hex.slice(j, j + 2));
+    }
+    return array;
+}
+/** Concatenates two Uint8Arrays into one. */
+function concatBytes(...arrays) {
+    if (arrays.length === 1)
+        return arrays[0];
+    const length = arrays.reduce((a, arr) => a + arr.length, 0);
+    const result = new Uint8Array(length);
+    for (let i = 0, pad = 0; i < arrays.length; i++) {
+        const arr = arrays[i];
+        result.set(arr, pad);
+        pad += arr.length;
+    }
+    return result;
+}
+function utf8ToBytes(utf) {
+    return new TextEncoder().encode(utf);
+}
+/** Transform an integer into its hexadecimal value */
+function numberToHex(integer) {
+    if (integer < 0) {
+        throw new Error('Invalid integer as argument, must be unsigned!');
+    }
+    const hex = integer.toString(16);
+    return hex.length % 2 ? `0${hex}` : hex;
+}
+/** Pad a string to be even */
+function padToEven(a) {
+    return a.length % 2 ? `0${a}` : a;
+}
+/** Check if a string is prefixed by 0x */
+function isHexPrefixed(str) {
+    return str.length >= 2 && str[0] === '0' && str[1] === 'x';
+}
+/** Removes 0x from a given String */
+function stripHexPrefix(str) {
+    if (typeof str !== 'string') {
+        return str;
+    }
+    return isHexPrefixed(str) ? str.slice(2) : str;
+}
+/** Transform anything into a Uint8Array */
+function toBytes(v) {
+    if (v instanceof Uint8Array) {
+        return v;
+    }
+    if (typeof v === 'string') {
+        if (isHexPrefixed(v)) {
+            return hexToBytes(padToEven(stripHexPrefix(v)));
+        }
+        return utf8ToBytes(v);
+    }
+    if (typeof v === 'number' || typeof v === 'bigint') {
+        if (!v) {
+            return Uint8Array.from([]);
+        }
+        return hexToBytes(numberToHex(v));
+    }
+    if (v === null || v === undefined) {
+        return Uint8Array.from([]);
+    }
+    throw new Error('toBytes: received unsupported type ' + typeof v);
+}
+const RLP = { encode, decode: decode$1 };
+
+const U32_MASK64 = /* @__PURE__ */ BigInt(2 ** 32 - 1);
+const _32n = /* @__PURE__ */ BigInt(32);
+// We are not using BigUint64Array, because they are extremely slow as per 2022
+function fromBig(n, le = false) {
+    if (le)
+        return { h: Number(n & U32_MASK64), l: Number((n >> _32n) & U32_MASK64) };
+    return { h: Number((n >> _32n) & U32_MASK64) | 0, l: Number(n & U32_MASK64) | 0 };
+}
+function split(lst, le = false) {
+    let Ah = new Uint32Array(lst.length);
+    let Al = new Uint32Array(lst.length);
+    for (let i = 0; i < lst.length; i++) {
+        const { h, l } = fromBig(lst[i], le);
+        [Ah[i], Al[i]] = [h, l];
+    }
+    return [Ah, Al];
+}
+// Left rotate for Shift in [1, 32)
+const rotlSH = (h, l, s) => (h << s) | (l >>> (32 - s));
+const rotlSL = (h, l, s) => (l << s) | (h >>> (32 - s));
+// Left rotate for Shift in (32, 64), NOTE: 32 is special case.
+const rotlBH = (h, l, s) => (l << (s - 32)) | (h >>> (64 - s));
+const rotlBL = (h, l, s) => (h << (s - 32)) | (l >>> (64 - s));
+
+// SHA3 (keccak) is based on a new design: basically, the internal state is bigger than output size.
+// It's called a sponge function.
+// Various per round constants calculations
+const SHA3_PI = [];
+const SHA3_ROTL = [];
+const _SHA3_IOTA = [];
+const _0n = /* @__PURE__ */ BigInt(0);
+const _1n = /* @__PURE__ */ BigInt(1);
+const _2n = /* @__PURE__ */ BigInt(2);
+const _7n = /* @__PURE__ */ BigInt(7);
+const _256n = /* @__PURE__ */ BigInt(256);
+const _0x71n = /* @__PURE__ */ BigInt(0x71);
+for (let round = 0, R = _1n, x = 1, y = 0; round < 24; round++) {
+    // Pi
+    [x, y] = [y, (2 * x + 3 * y) % 5];
+    SHA3_PI.push(2 * (5 * y + x));
+    // Rotational
+    SHA3_ROTL.push((((round + 1) * (round + 2)) / 2) % 64);
+    // Iota
+    let t = _0n;
+    for (let j = 0; j < 7; j++) {
+        R = ((R << _1n) ^ ((R >> _7n) * _0x71n)) % _256n;
+        if (R & _2n)
+            t ^= _1n << ((_1n << /* @__PURE__ */ BigInt(j)) - _1n);
+    }
+    _SHA3_IOTA.push(t);
+}
+const [SHA3_IOTA_H, SHA3_IOTA_L] = /* @__PURE__ */ split(_SHA3_IOTA, true);
+// Left rotation (without 0, 32, 64)
+const rotlH = (h, l, s) => (s > 32 ? rotlBH(h, l, s) : rotlSH(h, l, s));
+const rotlL = (h, l, s) => (s > 32 ? rotlBL(h, l, s) : rotlSL(h, l, s));
+// Same as keccakf1600, but allows to skip some rounds
+function keccakP(s, rounds = 24) {
+    const B = new Uint32Array(5 * 2);
+    // NOTE: all indices are x2 since we store state as u32 instead of u64 (bigints to slow in js)
+    for (let round = 24 - rounds; round < 24; round++) {
+        // Theta θ
+        for (let x = 0; x < 10; x++)
+            B[x] = s[x] ^ s[x + 10] ^ s[x + 20] ^ s[x + 30] ^ s[x + 40];
+        for (let x = 0; x < 10; x += 2) {
+            const idx1 = (x + 8) % 10;
+            const idx0 = (x + 2) % 10;
+            const B0 = B[idx0];
+            const B1 = B[idx0 + 1];
+            const Th = rotlH(B0, B1, 1) ^ B[idx1];
+            const Tl = rotlL(B0, B1, 1) ^ B[idx1 + 1];
+            for (let y = 0; y < 50; y += 10) {
+                s[x + y] ^= Th;
+                s[x + y + 1] ^= Tl;
+            }
+        }
+        // Rho (ρ) and Pi (π)
+        let curH = s[2];
+        let curL = s[3];
+        for (let t = 0; t < 24; t++) {
+            const shift = SHA3_ROTL[t];
+            const Th = rotlH(curH, curL, shift);
+            const Tl = rotlL(curH, curL, shift);
+            const PI = SHA3_PI[t];
+            curH = s[PI];
+            curL = s[PI + 1];
+            s[PI] = Th;
+            s[PI + 1] = Tl;
+        }
+        // Chi (χ)
+        for (let y = 0; y < 50; y += 10) {
+            for (let x = 0; x < 10; x++)
+                B[x] = s[y + x];
+            for (let x = 0; x < 10; x++)
+                s[y + x] ^= ~B[(x + 2) % 10] & B[(x + 4) % 10];
+        }
+        // Iota (ι)
+        s[0] ^= SHA3_IOTA_H[round];
+        s[1] ^= SHA3_IOTA_L[round];
+    }
+    B.fill(0);
+}
+class Keccak extends Hash {
+    // NOTE: we accept arguments in bytes instead of bits here.
+    constructor(blockLen, suffix, outputLen, enableXOF = false, rounds = 24) {
+        super();
+        this.blockLen = blockLen;
+        this.suffix = suffix;
+        this.outputLen = outputLen;
+        this.enableXOF = enableXOF;
+        this.rounds = rounds;
+        this.pos = 0;
+        this.posOut = 0;
+        this.finished = false;
+        this.destroyed = false;
+        // Can be passed from user as dkLen
+        number(outputLen);
+        // 1600 = 5x5 matrix of 64bit.  1600 bits === 200 bytes
+        if (0 >= this.blockLen || this.blockLen >= 200)
+            throw new Error('Sha3 supports only keccak-f1600 function');
+        this.state = new Uint8Array(200);
+        this.state32 = u32(this.state);
+    }
+    keccak() {
+        if (!isLE)
+            byteSwap32(this.state32);
+        keccakP(this.state32, this.rounds);
+        if (!isLE)
+            byteSwap32(this.state32);
+        this.posOut = 0;
+        this.pos = 0;
+    }
+    update(data) {
+        exists(this);
+        const { blockLen, state } = this;
+        data = toBytes$2(data);
+        const len = data.length;
+        for (let pos = 0; pos < len;) {
+            const take = Math.min(blockLen - this.pos, len - pos);
+            for (let i = 0; i < take; i++)
+                state[this.pos++] ^= data[pos++];
+            if (this.pos === blockLen)
+                this.keccak();
+        }
+        return this;
+    }
+    finish() {
+        if (this.finished)
+            return;
+        this.finished = true;
+        const { state, suffix, pos, blockLen } = this;
+        // Do the padding
+        state[pos] ^= suffix;
+        if ((suffix & 0x80) !== 0 && pos === blockLen - 1)
+            this.keccak();
+        state[blockLen - 1] ^= 0x80;
+        this.keccak();
+    }
+    writeInto(out) {
+        exists(this, false);
+        bytes(out);
+        this.finish();
+        const bufferOut = this.state;
+        const { blockLen } = this;
+        for (let pos = 0, len = out.length; pos < len;) {
+            if (this.posOut >= blockLen)
+                this.keccak();
+            const take = Math.min(blockLen - this.posOut, len - pos);
+            out.set(bufferOut.subarray(this.posOut, this.posOut + take), pos);
+            this.posOut += take;
+            pos += take;
+        }
+        return out;
+    }
+    xofInto(out) {
+        // Sha3/Keccak usage with XOF is probably mistake, only SHAKE instances can do XOF
+        if (!this.enableXOF)
+            throw new Error('XOF is not possible for this instance');
+        return this.writeInto(out);
+    }
+    xof(bytes) {
+        number(bytes);
+        return this.xofInto(new Uint8Array(bytes));
+    }
+    digestInto(out) {
+        output(out, this);
+        if (this.finished)
+            throw new Error('digest() was already called');
+        this.writeInto(out);
+        this.destroy();
+        return out;
+    }
+    digest() {
+        return this.digestInto(new Uint8Array(this.outputLen));
+    }
+    destroy() {
+        this.destroyed = true;
+        this.state.fill(0);
+    }
+    _cloneInto(to) {
+        const { blockLen, suffix, outputLen, rounds, enableXOF } = this;
+        to || (to = new Keccak(blockLen, suffix, outputLen, enableXOF, rounds));
+        to.state32.set(this.state32);
+        to.pos = this.pos;
+        to.posOut = this.posOut;
+        to.finished = this.finished;
+        to.rounds = rounds;
+        // Suffix can change in cSHAKE
+        to.suffix = suffix;
+        to.outputLen = outputLen;
+        to.enableXOF = enableXOF;
+        to.destroyed = this.destroyed;
+        return to;
+    }
+}
+const gen = (suffix, blockLen, outputLen) => wrapConstructor(() => new Keccak(blockLen, suffix, outputLen));
+/**
+ * keccak-256 hash function. Different from SHA3-256.
+ * @param message - that would be hashed
+ */
+const keccak_256 = /* @__PURE__ */ gen(0x01, 136, 256 / 8);
+
+const keccak256 = (() => {
+    const k = wrapHash(keccak_256);
+    k.create = keccak_256.create;
+    return k;
+})();
+
+var KeyEncoding;
+(function (KeyEncoding) {
+    KeyEncoding["String"] = "string";
+    KeyEncoding["Bytes"] = "view";
+    KeyEncoding["Number"] = "number";
+})(KeyEncoding || (KeyEncoding = {}));
+var ValueEncoding;
+(function (ValueEncoding) {
+    ValueEncoding["String"] = "string";
+    ValueEncoding["Bytes"] = "view";
+    ValueEncoding["JSON"] = "json";
+})(ValueEncoding || (ValueEncoding = {}));
+
+/**
+ * Type output options
+ */
+var TypeOutput;
+(function (TypeOutput) {
+    TypeOutput[TypeOutput["Number"] = 0] = "Number";
+    TypeOutput[TypeOutput["BigInt"] = 1] = "BigInt";
+    TypeOutput[TypeOutput["Uint8Array"] = 2] = "Uint8Array";
+    TypeOutput[TypeOutput["PrefixedHexString"] = 3] = "PrefixedHexString";
+})(TypeOutput || (TypeOutput = {}));
+
+// Based on https://github.com/jsoendermann/semaphore-async-await/blob/master/src/Semaphore.ts
+class Lock {
+    constructor() {
+        this.permits = 1;
+        this.promiseResolverQueue = [];
+    }
+    /**
+     * Returns a promise used to wait for a permit to become available. This method should be awaited on.
+     * @returns  A promise that gets resolved when execution is allowed to proceed.
+     */
+    async acquire() {
+        if (this.permits > 0) {
+            this.permits -= 1;
+            return Promise.resolve(true);
+        }
+        // If there is no permit available, we return a promise that resolves once the semaphore gets
+        // signaled enough times that permits is equal to one.
+        return new Promise((resolver) => this.promiseResolverQueue.push(resolver));
+    }
+    /**
+     * Increases the number of permits by one. If there are other functions waiting, one of them will
+     * continue to execute in a future iteration of the event loop.
+     */
+    release() {
+        this.permits += 1;
+        if (this.permits > 1 && this.promiseResolverQueue.length > 0) {
+            // eslint-disable-next-line no-console
+            console.warn('Lock.permits should never be > 0 when there is someone waiting.');
+        }
+        else if (this.permits === 1 && this.promiseResolverQueue.length > 0) {
+            // If there is someone else waiting, immediately consume the permit that was released
+            // at the beginning of this function and let the waiting function resume.
+            this.permits -= 1;
+            const nextResolver = this.promiseResolverQueue.shift();
+            if (nextResolver) {
+                nextResolver(true);
+            }
+        }
+    }
+}
+
+class MapDB {
+    constructor(database) {
+        this._database = database ?? new Map();
+    }
+    async get(key) {
+        const dbKey = key instanceof Uint8Array ? bytesToUnprefixedHex(key) : key.toString();
+        return this._database.get(dbKey);
+    }
+    async put(key, val) {
+        const dbKey = key instanceof Uint8Array ? bytesToUnprefixedHex(key) : key.toString();
+        this._database.set(dbKey, val);
+    }
+    async del(key) {
+        const dbKey = key instanceof Uint8Array ? bytesToUnprefixedHex(key) : key.toString();
+        this._database.delete(dbKey);
+    }
+    async batch(opStack) {
+        for (const op of opStack) {
+            if (op.type === 'del') {
+                await this.del(op.key);
+            }
+            if (op.type === 'put') {
+                await this.put(op.key, op.value);
+            }
+        }
+    }
+    /**
+     * Note that the returned shallow copy will share the underlying database with the original
+     *
+     * @returns DB
+     */
+    shallowCopy() {
+        return new MapDB(this._database);
+    }
+    open() {
+        return Promise.resolve();
+    }
+}
+
+/**
+ * @module LRUCache
+ */
+const perf = typeof performance === 'object' &&
+    performance &&
+    typeof performance.now === 'function'
+    ? performance
+    : Date;
+const warned = new Set();
+/* c8 ignore start */
+const PROCESS = (typeof process === 'object' && !!process ? process : {});
+/* c8 ignore start */
+const emitWarning = (msg, type, code, fn) => {
+    typeof PROCESS.emitWarning === 'function'
+        ? PROCESS.emitWarning(msg, type, code, fn)
+        : console.error(`[${code}] ${type}: ${msg}`);
+};
+let AC = globalThis.AbortController;
+let AS = globalThis.AbortSignal;
+/* c8 ignore start */
+if (typeof AC === 'undefined') {
+    //@ts-ignore
+    AS = class AbortSignal {
+        onabort;
+        _onabort = [];
+        reason;
+        aborted = false;
+        addEventListener(_, fn) {
+            this._onabort.push(fn);
+        }
+    };
+    //@ts-ignore
+    AC = class AbortController {
+        constructor() {
+            warnACPolyfill();
+        }
+        signal = new AS();
+        abort(reason) {
+            if (this.signal.aborted)
+                return;
+            //@ts-ignore
+            this.signal.reason = reason;
+            //@ts-ignore
+            this.signal.aborted = true;
+            //@ts-ignore
+            for (const fn of this.signal._onabort) {
+                fn(reason);
+            }
+            this.signal.onabort?.(reason);
+        }
+    };
+    let printACPolyfillWarning = PROCESS.env?.LRU_CACHE_IGNORE_AC_WARNING !== '1';
+    const warnACPolyfill = () => {
+        if (!printACPolyfillWarning)
+            return;
+        printACPolyfillWarning = false;
+        emitWarning('AbortController is not defined. If using lru-cache in ' +
+            'node 14, load an AbortController polyfill from the ' +
+            '`node-abort-controller` package. A minimal polyfill is ' +
+            'provided for use by LRUCache.fetch(), but it should not be ' +
+            'relied upon in other contexts (eg, passing it to other APIs that ' +
+            'use AbortController/AbortSignal might have undesirable effects). ' +
+            'You may disable this with LRU_CACHE_IGNORE_AC_WARNING=1 in the env.', 'NO_ABORT_CONTROLLER', 'ENOTSUP', warnACPolyfill);
+    };
+}
+/* c8 ignore stop */
+const shouldWarn = (code) => !warned.has(code);
+const isPosInt = (n) => n && n === Math.floor(n) && n > 0 && isFinite(n);
+/* c8 ignore start */
+// This is a little bit ridiculous, tbh.
+// The maximum array length is 2^32-1 or thereabouts on most JS impls.
+// And well before that point, you're caching the entire world, I mean,
+// that's ~32GB of just integers for the next/prev links, plus whatever
+// else to hold that many keys and values.  Just filling the memory with
+// zeroes at init time is brutal when you get that big.
+// But why not be complete?
+// Maybe in the future, these limits will have expanded.
+const getUintArray = (max) => !isPosInt(max)
+    ? null
+    : max <= Math.pow(2, 8)
+        ? Uint8Array
+        : max <= Math.pow(2, 16)
+            ? Uint16Array
+            : max <= Math.pow(2, 32)
+                ? Uint32Array
+                : max <= Number.MAX_SAFE_INTEGER
+                    ? ZeroArray
+                    : null;
+/* c8 ignore stop */
+class ZeroArray extends Array {
+    constructor(size) {
+        super(size);
+        this.fill(0);
+    }
+}
+class Stack {
+    heap;
+    length;
+    // private constructor
+    static #constructing = false;
+    static create(max) {
+        const HeapCls = getUintArray(max);
+        if (!HeapCls)
+            return [];
+        Stack.#constructing = true;
+        const s = new Stack(max, HeapCls);
+        Stack.#constructing = false;
+        return s;
+    }
+    constructor(max, HeapCls) {
+        /* c8 ignore start */
+        if (!Stack.#constructing) {
+            throw new TypeError('instantiate Stack using Stack.create(n)');
+        }
+        /* c8 ignore stop */
+        this.heap = new HeapCls(max);
+        this.length = 0;
+    }
+    push(n) {
+        this.heap[this.length++] = n;
+    }
+    pop() {
+        return this.heap[--this.length];
+    }
+}
+/**
+ * Default export, the thing you're using this module to get.
+ *
+ * All properties from the options object (with the exception of
+ * {@link OptionsBase.max} and {@link OptionsBase.maxSize}) are added as
+ * normal public members. (`max` and `maxBase` are read-only getters.)
+ * Changing any of these will alter the defaults for subsequent method calls,
+ * but is otherwise safe.
+ */
+class LRUCache {
+    // properties coming in from the options of these, only max and maxSize
+    // really *need* to be protected. The rest can be modified, as they just
+    // set defaults for various methods.
+    #max;
+    #maxSize;
+    #dispose;
+    #disposeAfter;
+    #fetchMethod;
+    /**
+     * {@link LRUCache.OptionsBase.ttl}
+     */
+    ttl;
+    /**
+     * {@link LRUCache.OptionsBase.ttlResolution}
+     */
+    ttlResolution;
+    /**
+     * {@link LRUCache.OptionsBase.ttlAutopurge}
+     */
+    ttlAutopurge;
+    /**
+     * {@link LRUCache.OptionsBase.updateAgeOnGet}
+     */
+    updateAgeOnGet;
+    /**
+     * {@link LRUCache.OptionsBase.updateAgeOnHas}
+     */
+    updateAgeOnHas;
+    /**
+     * {@link LRUCache.OptionsBase.allowStale}
+     */
+    allowStale;
+    /**
+     * {@link LRUCache.OptionsBase.noDisposeOnSet}
+     */
+    noDisposeOnSet;
+    /**
+     * {@link LRUCache.OptionsBase.noUpdateTTL}
+     */
+    noUpdateTTL;
+    /**
+     * {@link LRUCache.OptionsBase.maxEntrySize}
+     */
+    maxEntrySize;
+    /**
+     * {@link LRUCache.OptionsBase.sizeCalculation}
+     */
+    sizeCalculation;
+    /**
+     * {@link LRUCache.OptionsBase.noDeleteOnFetchRejection}
+     */
+    noDeleteOnFetchRejection;
+    /**
+     * {@link LRUCache.OptionsBase.noDeleteOnStaleGet}
+     */
+    noDeleteOnStaleGet;
+    /**
+     * {@link LRUCache.OptionsBase.allowStaleOnFetchAbort}
+     */
+    allowStaleOnFetchAbort;
+    /**
+     * {@link LRUCache.OptionsBase.allowStaleOnFetchRejection}
+     */
+    allowStaleOnFetchRejection;
+    /**
+     * {@link LRUCache.OptionsBase.ignoreFetchAbort}
+     */
+    ignoreFetchAbort;
+    // computed properties
+    #size;
+    #calculatedSize;
+    #keyMap;
+    #keyList;
+    #valList;
+    #next;
+    #prev;
+    #head;
+    #tail;
+    #free;
+    #disposed;
+    #sizes;
+    #starts;
+    #ttls;
+    #hasDispose;
+    #hasFetchMethod;
+    #hasDisposeAfter;
+    /**
+     * Do not call this method unless you need to inspect the
+     * inner workings of the cache.  If anything returned by this
+     * object is modified in any way, strange breakage may occur.
+     *
+     * These fields are private for a reason!
+     *
+     * @internal
+     */
+    static unsafeExposeInternals(c) {
+        return {
+            // properties
+            starts: c.#starts,
+            ttls: c.#ttls,
+            sizes: c.#sizes,
+            keyMap: c.#keyMap,
+            keyList: c.#keyList,
+            valList: c.#valList,
+            next: c.#next,
+            prev: c.#prev,
+            get head() {
+                return c.#head;
+            },
+            get tail() {
+                return c.#tail;
+            },
+            free: c.#free,
+            // methods
+            isBackgroundFetch: (p) => c.#isBackgroundFetch(p),
+            backgroundFetch: (k, index, options, context) => c.#backgroundFetch(k, index, options, context),
+            moveToTail: (index) => c.#moveToTail(index),
+            indexes: (options) => c.#indexes(options),
+            rindexes: (options) => c.#rindexes(options),
+            isStale: (index) => c.#isStale(index),
+        };
+    }
+    // Protected read-only members
+    /**
+     * {@link LRUCache.OptionsBase.max} (read-only)
+     */
+    get max() {
+        return this.#max;
+    }
+    /**
+     * {@link LRUCache.OptionsBase.maxSize} (read-only)
+     */
+    get maxSize() {
+        return this.#maxSize;
+    }
+    /**
+     * The total computed size of items in the cache (read-only)
+     */
+    get calculatedSize() {
+        return this.#calculatedSize;
+    }
+    /**
+     * The number of items stored in the cache (read-only)
+     */
+    get size() {
+        return this.#size;
+    }
+    /**
+     * {@link LRUCache.OptionsBase.fetchMethod} (read-only)
+     */
+    get fetchMethod() {
+        return this.#fetchMethod;
+    }
+    /**
+     * {@link LRUCache.OptionsBase.dispose} (read-only)
+     */
+    get dispose() {
+        return this.#dispose;
+    }
+    /**
+     * {@link LRUCache.OptionsBase.disposeAfter} (read-only)
+     */
+    get disposeAfter() {
+        return this.#disposeAfter;
+    }
+    constructor(options) {
+        const { max = 0, ttl, ttlResolution = 1, ttlAutopurge, updateAgeOnGet, updateAgeOnHas, allowStale, dispose, disposeAfter, noDisposeOnSet, noUpdateTTL, maxSize = 0, maxEntrySize = 0, sizeCalculation, fetchMethod, noDeleteOnFetchRejection, noDeleteOnStaleGet, allowStaleOnFetchRejection, allowStaleOnFetchAbort, ignoreFetchAbort, } = options;
+        if (max !== 0 && !isPosInt(max)) {
+            throw new TypeError('max option must be a nonnegative integer');
+        }
+        const UintArray = max ? getUintArray(max) : Array;
+        if (!UintArray) {
+            throw new Error('invalid max value: ' + max);
+        }
+        this.#max = max;
+        this.#maxSize = maxSize;
+        this.maxEntrySize = maxEntrySize || this.#maxSize;
+        this.sizeCalculation = sizeCalculation;
+        if (this.sizeCalculation) {
+            if (!this.#maxSize && !this.maxEntrySize) {
+                throw new TypeError('cannot set sizeCalculation without setting maxSize or maxEntrySize');
+            }
+            if (typeof this.sizeCalculation !== 'function') {
+                throw new TypeError('sizeCalculation set to non-function');
+            }
+        }
+        if (fetchMethod !== undefined &&
+            typeof fetchMethod !== 'function') {
+            throw new TypeError('fetchMethod must be a function if specified');
+        }
+        this.#fetchMethod = fetchMethod;
+        this.#hasFetchMethod = !!fetchMethod;
+        this.#keyMap = new Map();
+        this.#keyList = new Array(max).fill(undefined);
+        this.#valList = new Array(max).fill(undefined);
+        this.#next = new UintArray(max);
+        this.#prev = new UintArray(max);
+        this.#head = 0;
+        this.#tail = 0;
+        this.#free = Stack.create(max);
+        this.#size = 0;
+        this.#calculatedSize = 0;
+        if (typeof dispose === 'function') {
+            this.#dispose = dispose;
+        }
+        if (typeof disposeAfter === 'function') {
+            this.#disposeAfter = disposeAfter;
+            this.#disposed = [];
+        }
+        else {
+            this.#disposeAfter = undefined;
+            this.#disposed = undefined;
+        }
+        this.#hasDispose = !!this.#dispose;
+        this.#hasDisposeAfter = !!this.#disposeAfter;
+        this.noDisposeOnSet = !!noDisposeOnSet;
+        this.noUpdateTTL = !!noUpdateTTL;
+        this.noDeleteOnFetchRejection = !!noDeleteOnFetchRejection;
+        this.allowStaleOnFetchRejection = !!allowStaleOnFetchRejection;
+        this.allowStaleOnFetchAbort = !!allowStaleOnFetchAbort;
+        this.ignoreFetchAbort = !!ignoreFetchAbort;
+        // NB: maxEntrySize is set to maxSize if it's set
+        if (this.maxEntrySize !== 0) {
+            if (this.#maxSize !== 0) {
+                if (!isPosInt(this.#maxSize)) {
+                    throw new TypeError('maxSize must be a positive integer if specified');
+                }
+            }
+            if (!isPosInt(this.maxEntrySize)) {
+                throw new TypeError('maxEntrySize must be a positive integer if specified');
+            }
+            this.#initializeSizeTracking();
+        }
+        this.allowStale = !!allowStale;
+        this.noDeleteOnStaleGet = !!noDeleteOnStaleGet;
+        this.updateAgeOnGet = !!updateAgeOnGet;
+        this.updateAgeOnHas = !!updateAgeOnHas;
+        this.ttlResolution =
+            isPosInt(ttlResolution) || ttlResolution === 0
+                ? ttlResolution
+                : 1;
+        this.ttlAutopurge = !!ttlAutopurge;
+        this.ttl = ttl || 0;
+        if (this.ttl) {
+            if (!isPosInt(this.ttl)) {
+                throw new TypeError('ttl must be a positive integer if specified');
+            }
+            this.#initializeTTLTracking();
+        }
+        // do not allow completely unbounded caches
+        if (this.#max === 0 && this.ttl === 0 && this.#maxSize === 0) {
+            throw new TypeError('At least one of max, maxSize, or ttl is required');
+        }
+        if (!this.ttlAutopurge && !this.#max && !this.#maxSize) {
+            const code = 'LRU_CACHE_UNBOUNDED';
+            if (shouldWarn(code)) {
+                warned.add(code);
+                const msg = 'TTL caching without ttlAutopurge, max, or maxSize can ' +
+                    'result in unbounded memory consumption.';
+                emitWarning(msg, 'UnboundedCacheWarning', code, LRUCache);
+            }
+        }
+    }
+    /**
+     * Return the remaining TTL time for a given entry key
+     */
+    getRemainingTTL(key) {
+        return this.#keyMap.has(key) ? Infinity : 0;
+    }
+    #initializeTTLTracking() {
+        const ttls = new ZeroArray(this.#max);
+        const starts = new ZeroArray(this.#max);
+        this.#ttls = ttls;
+        this.#starts = starts;
+        this.#setItemTTL = (index, ttl, start = perf.now()) => {
+            starts[index] = ttl !== 0 ? start : 0;
+            ttls[index] = ttl;
+            if (ttl !== 0 && this.ttlAutopurge) {
+                const t = setTimeout(() => {
+                    if (this.#isStale(index)) {
+                        this.delete(this.#keyList[index]);
+                    }
+                }, ttl + 1);
+                // unref() not supported on all platforms
+                /* c8 ignore start */
+                if (t.unref) {
+                    t.unref();
+                }
+                /* c8 ignore stop */
+            }
+        };
+        this.#updateItemAge = index => {
+            starts[index] = ttls[index] !== 0 ? perf.now() : 0;
+        };
+        this.#statusTTL = (status, index) => {
+            if (ttls[index]) {
+                const ttl = ttls[index];
+                const start = starts[index];
+                /* c8 ignore next */
+                if (!ttl || !start)
+                    return;
+                status.ttl = ttl;
+                status.start = start;
+                status.now = cachedNow || getNow();
+                const age = status.now - start;
+                status.remainingTTL = ttl - age;
+            }
+        };
+        // debounce calls to perf.now() to 1s so we're not hitting
+        // that costly call repeatedly.
+        let cachedNow = 0;
+        const getNow = () => {
+            const n = perf.now();
+            if (this.ttlResolution > 0) {
+                cachedNow = n;
+                const t = setTimeout(() => (cachedNow = 0), this.ttlResolution);
+                // not available on all platforms
+                /* c8 ignore start */
+                if (t.unref) {
+                    t.unref();
+                }
+                /* c8 ignore stop */
+            }
+            return n;
+        };
+        this.getRemainingTTL = key => {
+            const index = this.#keyMap.get(key);
+            if (index === undefined) {
+                return 0;
+            }
+            const ttl = ttls[index];
+            const start = starts[index];
+            if (!ttl || !start) {
+                return Infinity;
+            }
+            const age = (cachedNow || getNow()) - start;
+            return ttl - age;
+        };
+        this.#isStale = index => {
+            const s = starts[index];
+            const t = ttls[index];
+            return !!t && !!s && (cachedNow || getNow()) - s > t;
+        };
+    }
+    // conditionally set private methods related to TTL
+    #updateItemAge = () => { };
+    #statusTTL = () => { };
+    #setItemTTL = () => { };
+    /* c8 ignore stop */
+    #isStale = () => false;
+    #initializeSizeTracking() {
+        const sizes = new ZeroArray(this.#max);
+        this.#calculatedSize = 0;
+        this.#sizes = sizes;
+        this.#removeItemSize = index => {
+            this.#calculatedSize -= sizes[index];
+            sizes[index] = 0;
+        };
+        this.#requireSize = (k, v, size, sizeCalculation) => {
+            // provisionally accept background fetches.
+            // actual value size will be checked when they return.
+            if (this.#isBackgroundFetch(v)) {
+                return 0;
+            }
+            if (!isPosInt(size)) {
+                if (sizeCalculation) {
+                    if (typeof sizeCalculation !== 'function') {
+                        throw new TypeError('sizeCalculation must be a function');
+                    }
+                    size = sizeCalculation(v, k);
+                    if (!isPosInt(size)) {
+                        throw new TypeError('sizeCalculation return invalid (expect positive integer)');
+                    }
+                }
+                else {
+                    throw new TypeError('invalid size value (must be positive integer). ' +
+                        'When maxSize or maxEntrySize is used, sizeCalculation ' +
+                        'or size must be set.');
+                }
+            }
+            return size;
+        };
+        this.#addItemSize = (index, size, status) => {
+            sizes[index] = size;
+            if (this.#maxSize) {
+                const maxSize = this.#maxSize - sizes[index];
+                while (this.#calculatedSize > maxSize) {
+                    this.#evict(true);
+                }
+            }
+            this.#calculatedSize += sizes[index];
+            if (status) {
+                status.entrySize = size;
+                status.totalCalculatedSize = this.#calculatedSize;
+            }
+        };
+    }
+    #removeItemSize = _i => { };
+    #addItemSize = (_i, _s, _st) => { };
+    #requireSize = (_k, _v, size, sizeCalculation) => {
+        if (size || sizeCalculation) {
+            throw new TypeError('cannot set size without setting maxSize or maxEntrySize on cache');
+        }
+        return 0;
+    };
+    *#indexes({ allowStale = this.allowStale } = {}) {
+        if (this.#size) {
+            for (let i = this.#tail; true;) {
+                if (!this.#isValidIndex(i)) {
+                    break;
+                }
+                if (allowStale || !this.#isStale(i)) {
+                    yield i;
+                }
+                if (i === this.#head) {
+                    break;
+                }
+                else {
+                    i = this.#prev[i];
+                }
+            }
+        }
+    }
+    *#rindexes({ allowStale = this.allowStale } = {}) {
+        if (this.#size) {
+            for (let i = this.#head; true;) {
+                if (!this.#isValidIndex(i)) {
+                    break;
+                }
+                if (allowStale || !this.#isStale(i)) {
+                    yield i;
+                }
+                if (i === this.#tail) {
+                    break;
+                }
+                else {
+                    i = this.#next[i];
+                }
+            }
+        }
+    }
+    #isValidIndex(index) {
+        return (index !== undefined &&
+            this.#keyMap.get(this.#keyList[index]) === index);
+    }
+    /**
+     * Return a generator yielding `[key, value]` pairs,
+     * in order from most recently used to least recently used.
+     */
+    *entries() {
+        for (const i of this.#indexes()) {
+            if (this.#valList[i] !== undefined &&
+                this.#keyList[i] !== undefined &&
+                !this.#isBackgroundFetch(this.#valList[i])) {
+                yield [this.#keyList[i], this.#valList[i]];
+            }
+        }
+    }
+    /**
+     * Inverse order version of {@link LRUCache.entries}
+     *
+     * Return a generator yielding `[key, value]` pairs,
+     * in order from least recently used to most recently used.
+     */
+    *rentries() {
+        for (const i of this.#rindexes()) {
+            if (this.#valList[i] !== undefined &&
+                this.#keyList[i] !== undefined &&
+                !this.#isBackgroundFetch(this.#valList[i])) {
+                yield [this.#keyList[i], this.#valList[i]];
+            }
+        }
+    }
+    /**
+     * Return a generator yielding the keys in the cache,
+     * in order from most recently used to least recently used.
+     */
+    *keys() {
+        for (const i of this.#indexes()) {
+            const k = this.#keyList[i];
+            if (k !== undefined &&
+                !this.#isBackgroundFetch(this.#valList[i])) {
+                yield k;
+            }
+        }
+    }
+    /**
+     * Inverse order version of {@link LRUCache.keys}
+     *
+     * Return a generator yielding the keys in the cache,
+     * in order from least recently used to most recently used.
+     */
+    *rkeys() {
+        for (const i of this.#rindexes()) {
+            const k = this.#keyList[i];
+            if (k !== undefined &&
+                !this.#isBackgroundFetch(this.#valList[i])) {
+                yield k;
+            }
+        }
+    }
+    /**
+     * Return a generator yielding the values in the cache,
+     * in order from most recently used to least recently used.
+     */
+    *values() {
+        for (const i of this.#indexes()) {
+            const v = this.#valList[i];
+            if (v !== undefined &&
+                !this.#isBackgroundFetch(this.#valList[i])) {
+                yield this.#valList[i];
+            }
+        }
+    }
+    /**
+     * Inverse order version of {@link LRUCache.values}
+     *
+     * Return a generator yielding the values in the cache,
+     * in order from least recently used to most recently used.
+     */
+    *rvalues() {
+        for (const i of this.#rindexes()) {
+            const v = this.#valList[i];
+            if (v !== undefined &&
+                !this.#isBackgroundFetch(this.#valList[i])) {
+                yield this.#valList[i];
+            }
+        }
+    }
+    /**
+     * Iterating over the cache itself yields the same results as
+     * {@link LRUCache.entries}
+     */
+    [Symbol.iterator]() {
+        return this.entries();
+    }
+    /**
+     * Find a value for which the supplied fn method returns a truthy value,
+     * similar to Array.find().  fn is called as fn(value, key, cache).
+     */
+    find(fn, getOptions = {}) {
+        for (const i of this.#indexes()) {
+            const v = this.#valList[i];
+            const value = this.#isBackgroundFetch(v)
+                ? v.__staleWhileFetching
+                : v;
+            if (value === undefined)
+                continue;
+            if (fn(value, this.#keyList[i], this)) {
+                return this.get(this.#keyList[i], getOptions);
+            }
+        }
+    }
+    /**
+     * Call the supplied function on each item in the cache, in order from
+     * most recently used to least recently used.  fn is called as
+     * fn(value, key, cache).  Does not update age or recenty of use.
+     * Does not iterate over stale values.
+     */
+    forEach(fn, thisp = this) {
+        for (const i of this.#indexes()) {
+            const v = this.#valList[i];
+            const value = this.#isBackgroundFetch(v)
+                ? v.__staleWhileFetching
+                : v;
+            if (value === undefined)
+                continue;
+            fn.call(thisp, value, this.#keyList[i], this);
+        }
+    }
+    /**
+     * The same as {@link LRUCache.forEach} but items are iterated over in
+     * reverse order.  (ie, less recently used items are iterated over first.)
+     */
+    rforEach(fn, thisp = this) {
+        for (const i of this.#rindexes()) {
+            const v = this.#valList[i];
+            const value = this.#isBackgroundFetch(v)
+                ? v.__staleWhileFetching
+                : v;
+            if (value === undefined)
+                continue;
+            fn.call(thisp, value, this.#keyList[i], this);
+        }
+    }
+    /**
+     * Delete any stale entries. Returns true if anything was removed,
+     * false otherwise.
+     */
+    purgeStale() {
+        let deleted = false;
+        for (const i of this.#rindexes({ allowStale: true })) {
+            if (this.#isStale(i)) {
+                this.delete(this.#keyList[i]);
+                deleted = true;
+            }
+        }
+        return deleted;
+    }
+    /**
+     * Get the extended info about a given entry, to get its value, size, and
+     * TTL info simultaneously. Like {@link LRUCache#dump}, but just for a
+     * single key. Always returns stale values, if their info is found in the
+     * cache, so be sure to check for expired TTLs if relevant.
+     */
+    info(key) {
+        const i = this.#keyMap.get(key);
+        if (i === undefined)
+            return undefined;
+        const v = this.#valList[i];
+        const value = this.#isBackgroundFetch(v)
+            ? v.__staleWhileFetching
+            : v;
+        if (value === undefined)
+            return undefined;
+        const entry = { value };
+        if (this.#ttls && this.#starts) {
+            const ttl = this.#ttls[i];
+            const start = this.#starts[i];
+            if (ttl && start) {
+                const remain = ttl - (perf.now() - start);
+                entry.ttl = remain;
+                entry.start = Date.now();
+            }
+        }
+        if (this.#sizes) {
+            entry.size = this.#sizes[i];
+        }
+        return entry;
+    }
+    /**
+     * Return an array of [key, {@link LRUCache.Entry}] tuples which can be
+     * passed to cache.load()
+     */
+    dump() {
+        const arr = [];
+        for (const i of this.#indexes({ allowStale: true })) {
+            const key = this.#keyList[i];
+            const v = this.#valList[i];
+            const value = this.#isBackgroundFetch(v)
+                ? v.__staleWhileFetching
+                : v;
+            if (value === undefined || key === undefined)
+                continue;
+            const entry = { value };
+            if (this.#ttls && this.#starts) {
+                entry.ttl = this.#ttls[i];
+                // always dump the start relative to a portable timestamp
+                // it's ok for this to be a bit slow, it's a rare operation.
+                const age = perf.now() - this.#starts[i];
+                entry.start = Math.floor(Date.now() - age);
+            }
+            if (this.#sizes) {
+                entry.size = this.#sizes[i];
+            }
+            arr.unshift([key, entry]);
+        }
+        return arr;
+    }
+    /**
+     * Reset the cache and load in the items in entries in the order listed.
+     * Note that the shape of the resulting cache may be different if the
+     * same options are not used in both caches.
+     */
+    load(arr) {
+        this.clear();
+        for (const [key, entry] of arr) {
+            if (entry.start) {
+                // entry.start is a portable timestamp, but we may be using
+                // node's performance.now(), so calculate the offset, so that
+                // we get the intended remaining TTL, no matter how long it's
+                // been on ice.
+                //
+                // it's ok for this to be a bit slow, it's a rare operation.
+                const age = Date.now() - entry.start;
+                entry.start = perf.now() - age;
+            }
+            this.set(key, entry.value, entry);
+        }
+    }
+    /**
+     * Add a value to the cache.
+     *
+     * Note: if `undefined` is specified as a value, this is an alias for
+     * {@link LRUCache#delete}
+     */
+    set(k, v, setOptions = {}) {
+        if (v === undefined) {
+            this.delete(k);
+            return this;
+        }
+        const { ttl = this.ttl, start, noDisposeOnSet = this.noDisposeOnSet, sizeCalculation = this.sizeCalculation, status, } = setOptions;
+        let { noUpdateTTL = this.noUpdateTTL } = setOptions;
+        const size = this.#requireSize(k, v, setOptions.size || 0, sizeCalculation);
+        // if the item doesn't fit, don't do anything
+        // NB: maxEntrySize set to maxSize by default
+        if (this.maxEntrySize && size > this.maxEntrySize) {
+            if (status) {
+                status.set = 'miss';
+                status.maxEntrySizeExceeded = true;
+            }
+            // have to delete, in case something is there already.
+            this.delete(k);
+            return this;
+        }
+        let index = this.#size === 0 ? undefined : this.#keyMap.get(k);
+        if (index === undefined) {
+            // addition
+            index = (this.#size === 0
+                ? this.#tail
+                : this.#free.length !== 0
+                    ? this.#free.pop()
+                    : this.#size === this.#max
+                        ? this.#evict(false)
+                        : this.#size);
+            this.#keyList[index] = k;
+            this.#valList[index] = v;
+            this.#keyMap.set(k, index);
+            this.#next[this.#tail] = index;
+            this.#prev[index] = this.#tail;
+            this.#tail = index;
+            this.#size++;
+            this.#addItemSize(index, size, status);
+            if (status)
+                status.set = 'add';
+            noUpdateTTL = false;
+        }
+        else {
+            // update
+            this.#moveToTail(index);
+            const oldVal = this.#valList[index];
+            if (v !== oldVal) {
+                if (this.#hasFetchMethod && this.#isBackgroundFetch(oldVal)) {
+                    oldVal.__abortController.abort(new Error('replaced'));
+                    const { __staleWhileFetching: s } = oldVal;
+                    if (s !== undefined && !noDisposeOnSet) {
+                        if (this.#hasDispose) {
+                            this.#dispose?.(s, k, 'set');
+                        }
+                        if (this.#hasDisposeAfter) {
+                            this.#disposed?.push([s, k, 'set']);
+                        }
+                    }
+                }
+                else if (!noDisposeOnSet) {
+                    if (this.#hasDispose) {
+                        this.#dispose?.(oldVal, k, 'set');
+                    }
+                    if (this.#hasDisposeAfter) {
+                        this.#disposed?.push([oldVal, k, 'set']);
+                    }
+                }
+                this.#removeItemSize(index);
+                this.#addItemSize(index, size, status);
+                this.#valList[index] = v;
+                if (status) {
+                    status.set = 'replace';
+                    const oldValue = oldVal && this.#isBackgroundFetch(oldVal)
+                        ? oldVal.__staleWhileFetching
+                        : oldVal;
+                    if (oldValue !== undefined)
+                        status.oldValue = oldValue;
+                }
+            }
+            else if (status) {
+                status.set = 'update';
+            }
+        }
+        if (ttl !== 0 && !this.#ttls) {
+            this.#initializeTTLTracking();
+        }
+        if (this.#ttls) {
+            if (!noUpdateTTL) {
+                this.#setItemTTL(index, ttl, start);
+            }
+            if (status)
+                this.#statusTTL(status, index);
+        }
+        if (!noDisposeOnSet && this.#hasDisposeAfter && this.#disposed) {
+            const dt = this.#disposed;
+            let task;
+            while ((task = dt?.shift())) {
+                this.#disposeAfter?.(...task);
+            }
+        }
+        return this;
+    }
+    /**
+     * Evict the least recently used item, returning its value or
+     * `undefined` if cache is empty.
+     */
+    pop() {
+        try {
+            while (this.#size) {
+                const val = this.#valList[this.#head];
+                this.#evict(true);
+                if (this.#isBackgroundFetch(val)) {
+                    if (val.__staleWhileFetching) {
+                        return val.__staleWhileFetching;
+                    }
+                }
+                else if (val !== undefined) {
+                    return val;
+                }
+            }
+        }
+        finally {
+            if (this.#hasDisposeAfter && this.#disposed) {
+                const dt = this.#disposed;
+                let task;
+                while ((task = dt?.shift())) {
+                    this.#disposeAfter?.(...task);
+                }
+            }
+        }
+    }
+    #evict(free) {
+        const head = this.#head;
+        const k = this.#keyList[head];
+        const v = this.#valList[head];
+        if (this.#hasFetchMethod && this.#isBackgroundFetch(v)) {
+            v.__abortController.abort(new Error('evicted'));
+        }
+        else if (this.#hasDispose || this.#hasDisposeAfter) {
+            if (this.#hasDispose) {
+                this.#dispose?.(v, k, 'evict');
+            }
+            if (this.#hasDisposeAfter) {
+                this.#disposed?.push([v, k, 'evict']);
+            }
+        }
+        this.#removeItemSize(head);
+        // if we aren't about to use the index, then null these out
+        if (free) {
+            this.#keyList[head] = undefined;
+            this.#valList[head] = undefined;
+            this.#free.push(head);
+        }
+        if (this.#size === 1) {
+            this.#head = this.#tail = 0;
+            this.#free.length = 0;
+        }
+        else {
+            this.#head = this.#next[head];
+        }
+        this.#keyMap.delete(k);
+        this.#size--;
+        return head;
+    }
+    /**
+     * Check if a key is in the cache, without updating the recency of use.
+     * Will return false if the item is stale, even though it is technically
+     * in the cache.
+     *
+     * Will not update item age unless
+     * {@link LRUCache.OptionsBase.updateAgeOnHas} is set.
+     */
+    has(k, hasOptions = {}) {
+        const { updateAgeOnHas = this.updateAgeOnHas, status } = hasOptions;
+        const index = this.#keyMap.get(k);
+        if (index !== undefined) {
+            const v = this.#valList[index];
+            if (this.#isBackgroundFetch(v) &&
+                v.__staleWhileFetching === undefined) {
+                return false;
+            }
+            if (!this.#isStale(index)) {
+                if (updateAgeOnHas) {
+                    this.#updateItemAge(index);
+                }
+                if (status) {
+                    status.has = 'hit';
+                    this.#statusTTL(status, index);
+                }
+                return true;
+            }
+            else if (status) {
+                status.has = 'stale';
+                this.#statusTTL(status, index);
+            }
+        }
+        else if (status) {
+            status.has = 'miss';
+        }
+        return false;
+    }
+    /**
+     * Like {@link LRUCache#get} but doesn't update recency or delete stale
+     * items.
+     *
+     * Returns `undefined` if the item is stale, unless
+     * {@link LRUCache.OptionsBase.allowStale} is set.
+     */
+    peek(k, peekOptions = {}) {
+        const { allowStale = this.allowStale } = peekOptions;
+        const index = this.#keyMap.get(k);
+        if (index === undefined ||
+            (!allowStale && this.#isStale(index))) {
+            return;
+        }
+        const v = this.#valList[index];
+        // either stale and allowed, or forcing a refresh of non-stale value
+        return this.#isBackgroundFetch(v) ? v.__staleWhileFetching : v;
+    }
+    #backgroundFetch(k, index, options, context) {
+        const v = index === undefined ? undefined : this.#valList[index];
+        if (this.#isBackgroundFetch(v)) {
+            return v;
+        }
+        const ac = new AC();
+        const { signal } = options;
+        // when/if our AC signals, then stop listening to theirs.
+        signal?.addEventListener('abort', () => ac.abort(signal.reason), {
+            signal: ac.signal,
+        });
+        const fetchOpts = {
+            signal: ac.signal,
+            options,
+            context,
+        };
+        const cb = (v, updateCache = false) => {
+            const { aborted } = ac.signal;
+            const ignoreAbort = options.ignoreFetchAbort && v !== undefined;
+            if (options.status) {
+                if (aborted && !updateCache) {
+                    options.status.fetchAborted = true;
+                    options.status.fetchError = ac.signal.reason;
+                    if (ignoreAbort)
+                        options.status.fetchAbortIgnored = true;
+                }
+                else {
+                    options.status.fetchResolved = true;
+                }
+            }
+            if (aborted && !ignoreAbort && !updateCache) {
+                return fetchFail(ac.signal.reason);
+            }
+            // either we didn't abort, and are still here, or we did, and ignored
+            const bf = p;
+            if (this.#valList[index] === p) {
+                if (v === undefined) {
+                    if (bf.__staleWhileFetching) {
+                        this.#valList[index] = bf.__staleWhileFetching;
+                    }
+                    else {
+                        this.delete(k);
+                    }
+                }
+                else {
+                    if (options.status)
+                        options.status.fetchUpdated = true;
+                    this.set(k, v, fetchOpts.options);
+                }
+            }
+            return v;
+        };
+        const eb = (er) => {
+            if (options.status) {
+                options.status.fetchRejected = true;
+                options.status.fetchError = er;
+            }
+            return fetchFail(er);
+        };
+        const fetchFail = (er) => {
+            const { aborted } = ac.signal;
+            const allowStaleAborted = aborted && options.allowStaleOnFetchAbort;
+            const allowStale = allowStaleAborted || options.allowStaleOnFetchRejection;
+            const noDelete = allowStale || options.noDeleteOnFetchRejection;
+            const bf = p;
+            if (this.#valList[index] === p) {
+                // if we allow stale on fetch rejections, then we need to ensure that
+                // the stale value is not removed from the cache when the fetch fails.
+                const del = !noDelete || bf.__staleWhileFetching === undefined;
+                if (del) {
+                    this.delete(k);
+                }
+                else if (!allowStaleAborted) {
+                    // still replace the *promise* with the stale value,
+                    // since we are done with the promise at this point.
+                    // leave it untouched if we're still waiting for an
+                    // aborted background fetch that hasn't yet returned.
+                    this.#valList[index] = bf.__staleWhileFetching;
+                }
+            }
+            if (allowStale) {
+                if (options.status && bf.__staleWhileFetching !== undefined) {
+                    options.status.returnedStale = true;
+                }
+                return bf.__staleWhileFetching;
+            }
+            else if (bf.__returned === bf) {
+                throw er;
+            }
+        };
+        const pcall = (res, rej) => {
+            const fmp = this.#fetchMethod?.(k, v, fetchOpts);
+            if (fmp && fmp instanceof Promise) {
+                fmp.then(v => res(v === undefined ? undefined : v), rej);
+            }
+            // ignored, we go until we finish, regardless.
+            // defer check until we are actually aborting,
+            // so fetchMethod can override.
+            ac.signal.addEventListener('abort', () => {
+                if (!options.ignoreFetchAbort ||
+                    options.allowStaleOnFetchAbort) {
+                    res(undefined);
+                    // when it eventually resolves, update the cache.
+                    if (options.allowStaleOnFetchAbort) {
+                        res = v => cb(v, true);
+                    }
+                }
+            });
+        };
+        if (options.status)
+            options.status.fetchDispatched = true;
+        const p = new Promise(pcall).then(cb, eb);
+        const bf = Object.assign(p, {
+            __abortController: ac,
+            __staleWhileFetching: v,
+            __returned: undefined,
+        });
+        if (index === undefined) {
+            // internal, don't expose status.
+            this.set(k, bf, { ...fetchOpts.options, status: undefined });
+            index = this.#keyMap.get(k);
+        }
+        else {
+            this.#valList[index] = bf;
+        }
+        return bf;
+    }
+    #isBackgroundFetch(p) {
+        if (!this.#hasFetchMethod)
+            return false;
+        const b = p;
+        return (!!b &&
+            b instanceof Promise &&
+            b.hasOwnProperty('__staleWhileFetching') &&
+            b.__abortController instanceof AC);
+    }
+    async fetch(k, fetchOptions = {}) {
+        const { 
+        // get options
+        allowStale = this.allowStale, updateAgeOnGet = this.updateAgeOnGet, noDeleteOnStaleGet = this.noDeleteOnStaleGet, 
+        // set options
+        ttl = this.ttl, noDisposeOnSet = this.noDisposeOnSet, size = 0, sizeCalculation = this.sizeCalculation, noUpdateTTL = this.noUpdateTTL, 
+        // fetch exclusive options
+        noDeleteOnFetchRejection = this.noDeleteOnFetchRejection, allowStaleOnFetchRejection = this.allowStaleOnFetchRejection, ignoreFetchAbort = this.ignoreFetchAbort, allowStaleOnFetchAbort = this.allowStaleOnFetchAbort, context, forceRefresh = false, status, signal, } = fetchOptions;
+        if (!this.#hasFetchMethod) {
+            if (status)
+                status.fetch = 'get';
+            return this.get(k, {
+                allowStale,
+                updateAgeOnGet,
+                noDeleteOnStaleGet,
+                status,
+            });
+        }
+        const options = {
+            allowStale,
+            updateAgeOnGet,
+            noDeleteOnStaleGet,
+            ttl,
+            noDisposeOnSet,
+            size,
+            sizeCalculation,
+            noUpdateTTL,
+            noDeleteOnFetchRejection,
+            allowStaleOnFetchRejection,
+            allowStaleOnFetchAbort,
+            ignoreFetchAbort,
+            status,
+            signal,
+        };
+        let index = this.#keyMap.get(k);
+        if (index === undefined) {
+            if (status)
+                status.fetch = 'miss';
+            const p = this.#backgroundFetch(k, index, options, context);
+            return (p.__returned = p);
+        }
+        else {
+            // in cache, maybe already fetching
+            const v = this.#valList[index];
+            if (this.#isBackgroundFetch(v)) {
+                const stale = allowStale && v.__staleWhileFetching !== undefined;
+                if (status) {
+                    status.fetch = 'inflight';
+                    if (stale)
+                        status.returnedStale = true;
+                }
+                return stale ? v.__staleWhileFetching : (v.__returned = v);
+            }
+            // if we force a refresh, that means do NOT serve the cached value,
+            // unless we are already in the process of refreshing the cache.
+            const isStale = this.#isStale(index);
+            if (!forceRefresh && !isStale) {
+                if (status)
+                    status.fetch = 'hit';
+                this.#moveToTail(index);
+                if (updateAgeOnGet) {
+                    this.#updateItemAge(index);
+                }
+                if (status)
+                    this.#statusTTL(status, index);
+                return v;
+            }
+            // ok, it is stale or a forced refresh, and not already fetching.
+            // refresh the cache.
+            const p = this.#backgroundFetch(k, index, options, context);
+            const hasStale = p.__staleWhileFetching !== undefined;
+            const staleVal = hasStale && allowStale;
+            if (status) {
+                status.fetch = isStale ? 'stale' : 'refresh';
+                if (staleVal && isStale)
+                    status.returnedStale = true;
+            }
+            return staleVal ? p.__staleWhileFetching : (p.__returned = p);
+        }
+    }
+    /**
+     * Return a value from the cache. Will update the recency of the cache
+     * entry found.
+     *
+     * If the key is not found, get() will return `undefined`.
+     */
+    get(k, getOptions = {}) {
+        const { allowStale = this.allowStale, updateAgeOnGet = this.updateAgeOnGet, noDeleteOnStaleGet = this.noDeleteOnStaleGet, status, } = getOptions;
+        const index = this.#keyMap.get(k);
+        if (index !== undefined) {
+            const value = this.#valList[index];
+            const fetching = this.#isBackgroundFetch(value);
+            if (status)
+                this.#statusTTL(status, index);
+            if (this.#isStale(index)) {
+                if (status)
+                    status.get = 'stale';
+                // delete only if not an in-flight background fetch
+                if (!fetching) {
+                    if (!noDeleteOnStaleGet) {
+                        this.delete(k);
+                    }
+                    if (status && allowStale)
+                        status.returnedStale = true;
+                    return allowStale ? value : undefined;
+                }
+                else {
+                    if (status &&
+                        allowStale &&
+                        value.__staleWhileFetching !== undefined) {
+                        status.returnedStale = true;
+                    }
+                    return allowStale ? value.__staleWhileFetching : undefined;
+                }
+            }
+            else {
+                if (status)
+                    status.get = 'hit';
+                // if we're currently fetching it, we don't actually have it yet
+                // it's not stale, which means this isn't a staleWhileRefetching.
+                // If it's not stale, and fetching, AND has a __staleWhileFetching
+                // value, then that means the user fetched with {forceRefresh:true},
+                // so it's safe to return that value.
+                if (fetching) {
+                    return value.__staleWhileFetching;
+                }
+                this.#moveToTail(index);
+                if (updateAgeOnGet) {
+                    this.#updateItemAge(index);
+                }
+                return value;
+            }
+        }
+        else if (status) {
+            status.get = 'miss';
+        }
+    }
+    #connect(p, n) {
+        this.#prev[n] = p;
+        this.#next[p] = n;
+    }
+    #moveToTail(index) {
+        // if tail already, nothing to do
+        // if head, move head to next[index]
+        // else
+        //   move next[prev[index]] to next[index] (head has no prev)
+        //   move prev[next[index]] to prev[index]
+        // prev[index] = tail
+        // next[tail] = index
+        // tail = index
+        if (index !== this.#tail) {
+            if (index === this.#head) {
+                this.#head = this.#next[index];
+            }
+            else {
+                this.#connect(this.#prev[index], this.#next[index]);
+            }
+            this.#connect(this.#tail, index);
+            this.#tail = index;
+        }
+    }
+    /**
+     * Deletes a key out of the cache.
+     * Returns true if the key was deleted, false otherwise.
+     */
+    delete(k) {
+        let deleted = false;
+        if (this.#size !== 0) {
+            const index = this.#keyMap.get(k);
+            if (index !== undefined) {
+                deleted = true;
+                if (this.#size === 1) {
+                    this.clear();
+                }
+                else {
+                    this.#removeItemSize(index);
+                    const v = this.#valList[index];
+                    if (this.#isBackgroundFetch(v)) {
+                        v.__abortController.abort(new Error('deleted'));
+                    }
+                    else if (this.#hasDispose || this.#hasDisposeAfter) {
+                        if (this.#hasDispose) {
+                            this.#dispose?.(v, k, 'delete');
+                        }
+                        if (this.#hasDisposeAfter) {
+                            this.#disposed?.push([v, k, 'delete']);
+                        }
+                    }
+                    this.#keyMap.delete(k);
+                    this.#keyList[index] = undefined;
+                    this.#valList[index] = undefined;
+                    if (index === this.#tail) {
+                        this.#tail = this.#prev[index];
+                    }
+                    else if (index === this.#head) {
+                        this.#head = this.#next[index];
+                    }
+                    else {
+                        const pi = this.#prev[index];
+                        this.#next[pi] = this.#next[index];
+                        const ni = this.#next[index];
+                        this.#prev[ni] = this.#prev[index];
+                    }
+                    this.#size--;
+                    this.#free.push(index);
+                }
+            }
+        }
+        if (this.#hasDisposeAfter && this.#disposed?.length) {
+            const dt = this.#disposed;
+            let task;
+            while ((task = dt?.shift())) {
+                this.#disposeAfter?.(...task);
+            }
+        }
+        return deleted;
+    }
+    /**
+     * Clear the cache entirely, throwing away all values.
+     */
+    clear() {
+        for (const index of this.#rindexes({ allowStale: true })) {
+            const v = this.#valList[index];
+            if (this.#isBackgroundFetch(v)) {
+                v.__abortController.abort(new Error('deleted'));
+            }
+            else {
+                const k = this.#keyList[index];
+                if (this.#hasDispose) {
+                    this.#dispose?.(v, k, 'delete');
+                }
+                if (this.#hasDisposeAfter) {
+                    this.#disposed?.push([v, k, 'delete']);
+                }
+            }
+        }
+        this.#keyMap.clear();
+        this.#valList.fill(undefined);
+        this.#keyList.fill(undefined);
+        if (this.#ttls && this.#starts) {
+            this.#ttls.fill(0);
+            this.#starts.fill(0);
+        }
+        if (this.#sizes) {
+            this.#sizes.fill(0);
+        }
+        this.#head = 0;
+        this.#tail = 0;
+        this.#free.length = 0;
+        this.#calculatedSize = 0;
+        this.#size = 0;
+        if (this.#hasDisposeAfter && this.#disposed) {
+            const dt = this.#disposed;
+            let task;
+            while ((task = dt?.shift())) {
+                this.#disposeAfter?.(...task);
+            }
+        }
+    }
+}
+
+/**
+ * DB is a thin wrapper around the underlying levelup db,
+ * which validates inputs and sets encoding type.
+ */
+class CheckpointDB {
+    /**
+     * Initialize a DB instance.
+     */
+    constructor(opts) {
+        // protected _cache?: LRUCache<string, Uint8Array | undefined>
+        this._stats = {
+            cache: {
+                reads: 0,
+                hits: 0,
+                writes: 0,
+            },
+            db: {
+                reads: 0,
+                hits: 0,
+                writes: 0,
+            },
+        };
+        this.db = opts.db;
+        this.cacheSize = opts.cacheSize ?? 0;
+        this.valueEncoding = opts.valueEncoding ?? ValueEncoding.String;
+        // Roots of trie at the moment of checkpoint
+        this.checkpoints = [];
+        if (this.cacheSize > 0) {
+            // @ts-ignore
+            this._cache = new LRUCache({
+                max: this.cacheSize,
+                updateAgeOnGet: true,
+            });
+        }
+    }
+    /**
+     * Flush the checkpoints and use the given checkpoints instead.
+     * @param {Checkpoint[]} checkpoints
+     */
+    setCheckpoints(checkpoints) {
+        this.checkpoints = [];
+        for (let i = 0; i < checkpoints.length; i++) {
+            this.checkpoints.push({
+                root: checkpoints[i].root,
+                keyValueMap: new Map(checkpoints[i].keyValueMap),
+            });
+        }
+    }
+    /**
+     * Is the DB during a checkpoint phase?
+     */
+    hasCheckpoints() {
+        return this.checkpoints.length > 0;
+    }
+    /**
+     * Adds a new checkpoint to the stack
+     * @param root
+     */
+    checkpoint(root) {
+        this.checkpoints.push({ keyValueMap: new Map(), root });
+    }
+    /**
+     * Commits the latest checkpoint
+     */
+    async commit() {
+        const { keyValueMap } = this.checkpoints.pop();
+        if (!this.hasCheckpoints()) {
+            // This was the final checkpoint, we should now commit and flush everything to disk
+            const batchOp = [];
+            for (const [key, value] of keyValueMap.entries()) {
+                if (value === undefined) {
+                    batchOp.push({
+                        type: 'del',
+                        key: unprefixedHexToBytes(key),
+                    });
+                }
+                else {
+                    batchOp.push({
+                        type: 'put',
+                        key: unprefixedHexToBytes(key),
+                        value,
+                    });
+                }
+            }
+            await this.batch(batchOp);
+        }
+        else {
+            // dump everything into the current (higher level) diff cache
+            const currentKeyValueMap = this.checkpoints[this.checkpoints.length - 1].keyValueMap;
+            for (const [key, value] of keyValueMap.entries()) {
+                currentKeyValueMap.set(key, value);
+            }
+        }
+    }
+    /**
+     * Reverts the latest checkpoint
+     */
+    async revert() {
+        const { root } = this.checkpoints.pop();
+        return root;
+    }
+    /**
+     * @inheritDoc
+     */
+    async get(key) {
+        const keyHex = bytesToUnprefixedHex(key);
+        if (this._cache !== undefined) {
+            const value = this._cache.get(keyHex);
+            this._stats.cache.reads += 1;
+            if (value !== undefined) {
+                this._stats.cache.hits += 1;
+                return value;
+            }
+        }
+        // Lookup the value in our diff cache. We return the latest checkpointed value (which should be the value on disk)
+        for (let index = this.checkpoints.length - 1; index >= 0; index--) {
+            if (this.checkpoints[index].keyValueMap.has(keyHex)) {
+                return this.checkpoints[index].keyValueMap.get(keyHex);
+            }
+        }
+        // Nothing has been found in diff cache, look up from disk
+        const value = await this.db.get(keyHex, {
+            keyEncoding: KeyEncoding.String,
+            valueEncoding: this.valueEncoding,
+        });
+        this._stats.db.reads += 1;
+        if (value !== undefined) {
+            this._stats.db.hits += 1;
+        }
+        const returnValue = value !== undefined
+            ? value instanceof Uint8Array
+                ? value
+                : unprefixedHexToBytes(value)
+            : undefined;
+        this._cache?.set(keyHex, returnValue);
+        if (this.hasCheckpoints()) {
+            // Since we are a checkpoint, put this value in diff cache,
+            // so future `get` calls will not look the key up again from disk.
+            this.checkpoints[this.checkpoints.length - 1].keyValueMap.set(keyHex, returnValue);
+        }
+        return returnValue;
+    }
+    /**
+     * @inheritDoc
+     */
+    async put(key, value) {
+        const keyHex = bytesToUnprefixedHex(key);
+        if (this.hasCheckpoints()) {
+            // put value in diff cache
+            this.checkpoints[this.checkpoints.length - 1].keyValueMap.set(keyHex, value);
+        }
+        else {
+            const valuePut = this.valueEncoding === ValueEncoding.Bytes ? value : bytesToUnprefixedHex(value);
+            await this.db.put(keyHex, valuePut, {
+                keyEncoding: KeyEncoding.String,
+                valueEncoding: this.valueEncoding,
+            });
+            this._stats.db.writes += 1;
+            if (this._cache !== undefined) {
+                this._cache.set(keyHex, value);
+                this._stats.cache.writes += 1;
+            }
+        }
+    }
+    /**
+     * @inheritDoc
+     */
+    async del(key) {
+        const keyHex = bytesToUnprefixedHex(key);
+        if (this.hasCheckpoints()) {
+            // delete the value in the current diff cache
+            this.checkpoints[this.checkpoints.length - 1].keyValueMap.set(keyHex, undefined);
+        }
+        else {
+            // delete the value on disk
+            await this.db.del(keyHex, {
+                keyEncoding: KeyEncoding.String,
+            });
+            this._stats.db.writes += 1;
+            if (this._cache !== undefined) {
+                this._cache.set(keyHex, undefined);
+                this._stats.cache.writes += 1;
+            }
+        }
+    }
+    /**
+     * @inheritDoc
+     */
+    async batch(opStack) {
+        if (this.hasCheckpoints()) {
+            for (const op of opStack) {
+                if (op.type === 'put') {
+                    await this.put(op.key, op.value);
+                }
+                else if (op.type === 'del') {
+                    await this.del(op.key);
+                }
+            }
+        }
+        else {
+            const convertedOps = opStack.map((op) => {
+                const convertedOp = {
+                    key: bytesToUnprefixedHex(op.key),
+                    value: op.type === 'put' ? op.value : undefined,
+                    type: op.type,
+                    opts: { ...op.opts, ...{ valueEncoding: this.valueEncoding } },
+                };
+                if (op.type === 'put' && this.valueEncoding === ValueEncoding.String) {
+                    convertedOp.value = bytesToUnprefixedHex(convertedOp.value);
+                }
+                return convertedOp;
+            });
+            await this.db.batch(convertedOps);
+        }
+    }
+    stats(reset = true) {
+        const stats = { ...this._stats, size: this._cache?.size ?? 0 };
+        if (reset) {
+            this._stats = {
+                cache: {
+                    reads: 0,
+                    hits: 0,
+                    writes: 0,
+                },
+                db: {
+                    reads: 0,
+                    hits: 0,
+                    writes: 0,
+                },
+            };
+        }
+        return stats;
+    }
+    /**
+     * @inheritDoc
+     */
+    shallowCopy() {
+        return new CheckpointDB({
+            db: this.db,
+            cacheSize: this.cacheSize,
+            valueEncoding: this.valueEncoding,
+        });
+    }
+    open() {
+        return Promise.resolve();
+    }
+}
+
+class BranchNode {
+    constructor() {
+        this._branches = new Array(16).fill(null);
+        this._value = null;
+    }
+    static fromArray(arr) {
+        const node = new BranchNode();
+        node._branches = arr.slice(0, 16);
+        node._value = arr[16];
+        return node;
+    }
+    value(v) {
+        if (v !== null && v !== undefined) {
+            this._value = v;
+        }
+        return this._value && this._value.length > 0 ? this._value : null;
+    }
+    setBranch(i, v) {
+        this._branches[i] = v;
+    }
+    raw() {
+        return [...this._branches, this._value];
+    }
+    serialize() {
+        return RLP.encode(this.raw());
+    }
+    getBranch(i) {
+        const b = this._branches[i];
+        if (b !== null && b.length > 0) {
+            return b;
+        }
+        else {
+            return null;
+        }
+    }
+    getChildren() {
+        const children = [];
+        for (let i = 0; i < 16; i++) {
+            const b = this._branches[i];
+            if (b !== null && b.length > 0) {
+                children.push([i, b]);
+            }
+        }
+        return children;
+    }
+}
+
+/**
+ * Prepends hex prefix to an array of nibbles.
+ * @param key - Array of nibbles
+ * @returns returns buffer of encoded data
+ **/
+function addHexPrefix(key, terminator) {
+    // odd
+    if (key.length % 2) {
+        key.unshift(1);
+    }
+    else {
+        // even
+        key.unshift(0);
+        key.unshift(0);
+    }
+    if (terminator) {
+        key[0] += 2;
+    }
+    return key;
+}
+/**
+ * Removes hex prefix of an array of nibbles.
+ * @param val - Array of nibbles
+ * @private
+ */
+function removeHexPrefix(val) {
+    if (val[0] % 2) {
+        val = val.slice(1);
+    }
+    else {
+        val = val.slice(2);
+    }
+    return val;
+}
+/**
+ * Returns true if hex-prefixed path is for a terminating (leaf) node.
+ * @param key - a hex-prefixed array of nibbles
+ * @private
+ */
+function isTerminator(key) {
+    return key[0] > 1;
+}
+
+/**
+ * Converts a bytes to a nibble array.
+ * @private
+ * @param key
+ */
+function bytesToNibbles(key) {
+    const bkey = toBytes$1(key);
+    const nibbles = [];
+    for (let i = 0; i < bkey.length; i++) {
+        let q = i * 2;
+        nibbles[q] = bkey[i] >> 4;
+        ++q;
+        nibbles[q] = bkey[i] % 16;
+    }
+    return nibbles;
+}
+/**
+ * Converts a nibble array into bytes.
+ * @private
+ * @param arr - Nibble array
+ */
+function nibblestoBytes(arr) {
+    const buf = new Uint8Array(arr.length / 2);
+    for (let i = 0; i < buf.length; i++) {
+        let q = i * 2;
+        buf[i] = (arr[q] << 4) + arr[++q];
+    }
+    return buf;
+}
+/**
+ * Compare two nibble array.
+ * * `0` is returned if `n2` === `n1`.
+ * * `1` is returned if `n2` > `n1`.
+ * * `-1` is returned if `n2` < `n1`.
+ * @param n1 - Nibble array
+ * @param n2 - Nibble array
+ */
+function nibblesCompare(n1, n2) {
+    const cmpLength = Math.min(n1.length, n2.length);
+    let res = 0;
+    for (let i = 0; i < cmpLength; i++) {
+        if (n1[i] < n2[i]) {
+            res = -1;
+            break;
+        }
+        else if (n1[i] > n2[i]) {
+            res = 1;
+            break;
+        }
+    }
+    if (res === 0) {
+        if (n1.length < n2.length) {
+            res = -1;
+        }
+        else if (n1.length > n2.length) {
+            res = 1;
+        }
+    }
+    return res;
+}
+/**
+ * Returns the number of in order matching nibbles of two give nibble arrays.
+ * @private
+ * @param nib1
+ * @param nib2
+ */
+function matchingNibbleLength(nib1, nib2) {
+    let i = 0;
+    while (nib1[i] === nib2[i] && nib1.length > i) {
+        i++;
+    }
+    return i;
+}
+
+class Node {
+    constructor(nibbles, value, terminator) {
+        this._nibbles = nibbles;
+        this._value = value;
+        this._terminator = terminator;
+    }
+    static decodeKey(key) {
+        return removeHexPrefix(key);
+    }
+    key(k) {
+        if (k !== undefined) {
+            this._nibbles = k;
+        }
+        return this._nibbles.slice(0);
+    }
+    keyLength() {
+        return this._nibbles.length;
+    }
+    value(v) {
+        if (v !== undefined) {
+            this._value = v;
+        }
+        return this._value;
+    }
+    encodedKey() {
+        return addHexPrefix(this._nibbles.slice(0), this._terminator);
+    }
+    raw() {
+        return [nibblestoBytes(this.encodedKey()), this._value];
+    }
+    serialize() {
+        return RLP.encode(this.raw());
+    }
+}
+
+class ExtensionNode extends Node {
+    constructor(nibbles, value) {
+        super(nibbles, value, false);
+    }
+    static encodeKey(key) {
+        return addHexPrefix(key, false);
+    }
+}
+
+class LeafNode extends Node {
+    constructor(nibbles, value) {
+        super(nibbles, value, true);
+    }
+    static encodeKey(key) {
+        return addHexPrefix(key, true);
+    }
+}
+
+function decodeRawNode(raw) {
+    if (raw.length === 17) {
+        return BranchNode.fromArray(raw);
+    }
+    else if (raw.length === 2) {
+        const nibbles = bytesToNibbles(raw[0]);
+        if (isTerminator(nibbles)) {
+            return new LeafNode(LeafNode.decodeKey(nibbles), raw[1]);
+        }
+        return new ExtensionNode(ExtensionNode.decodeKey(nibbles), raw[1]);
+    }
+    else {
+        throw new Error('Invalid node');
+    }
+}
+function isRawNode(n) {
+    return Array.isArray(n) && !(n instanceof Uint8Array);
+}
+function decodeNode(node) {
+    const decodedNode = RLP.decode(Uint8Array.from(node));
+    if (!isRawNode(decodedNode)) {
+        throw new Error('Invalid node');
+    }
+    return decodeRawNode(decodedNode);
+}
+
+const ROOT_DB_KEY = utf8ToBytes$2('__root__');
+
+/**
+ * Walk Trie via async generator
+ * @param nodeHash - The root key to walk on.
+ * @param currentKey - The current (partial) key.
+ * @param onFound - Called on every node found (before filter)
+ * @param filter - Filter nodes yielded by the generator.
+ * @param visited - Set of visited nodes
+ * @returns AsyncIterable<{ node: TrieNode; currentKey: number[] }>
+ * Iterate through nodes with
+ * `for await (const { node, currentKey } of trie._walkTrie(root)) { ... }`
+ */
+async function* _walkTrie(nodeHash, currentKey = [], onFound = async (_trieNode, _key) => { }, filter = async (_trieNode, _key) => true, visited = new Set()) {
+    if (equalsBytes(nodeHash, this.EMPTY_TRIE_ROOT)) {
+        return;
+    }
+    try {
+        const node = await this.lookupNode(nodeHash);
+        if (node === undefined || visited.has(bytesToHex$3(this.hash(node.serialize())))) {
+            return;
+        }
+        visited.add(bytesToHex$3(this.hash(node.serialize())));
+        await onFound(node, currentKey);
+        if (await filter(node, currentKey)) {
+            yield { node: node, currentKey };
+        }
+        if (node instanceof BranchNode) {
+            for (const [nibble, childNode] of node._branches.entries()) {
+                const nextKey = [...currentKey, nibble];
+                const _childNode = childNode instanceof Uint8Array ? childNode : this.hash(RLP.encode(childNode));
+                yield* _walkTrie.bind(this)(_childNode, nextKey, onFound, filter, visited);
+            }
+        }
+        else if (node instanceof ExtensionNode) {
+            const childNode = node.value();
+            const nextKey = [...currentKey, ...node._nibbles];
+            yield* _walkTrie.bind(this)(childNode, nextKey, onFound, filter, visited);
+        }
+    }
+    catch (e) {
+        return;
+    }
+}
+
+// eslint-disable-next-line implicit-dependencies/no-implicit
+const _findValueNodes = async (trie, onFound) => {
+    const outerOnFound = async (nodeRef, node, key, walkController) => {
+        let fullKey = key;
+        if (node instanceof LeafNode) {
+            fullKey = key.concat(node.key());
+            // found leaf node!
+            onFound(nodeRef, node, fullKey, walkController);
+        }
+        else if (node instanceof BranchNode && node.value()) {
+            // found branch with value
+            onFound(nodeRef, node, fullKey, walkController);
+        }
+        else {
+            // keep looking for value nodes
+            if (node !== null) {
+                walkController.allChildren(node, key);
+            }
+        }
+    };
+    await trie.walkTrie(trie.root(), outerOnFound);
+};
+class TrieReadStream extends Readable {
+    constructor(trie) {
+        super({ objectMode: true });
+        this.trie = trie;
+        this._started = false;
+    }
+    async _read() {
+        if (this._started) {
+            return;
+        }
+        this._started = true;
+        try {
+            await _findValueNodes(this.trie, async (_, node, key, walkController) => {
+                if (node !== null) {
+                    this.push({
+                        key: nibblestoBytes(key),
+                        value: node.value(),
+                    });
+                    walkController.allChildren(node, key);
+                }
+            });
+        }
+        catch (error) {
+            if (error.message === 'Missing node in DB') ;
+            else {
+                throw error;
+            }
+        }
+        this.push(null);
+    }
+}
+
+class PrioritizedTaskExecutor {
+    /**
+     * Executes tasks up to maxPoolSize at a time, other items are put in a priority queue.
+     * @class PrioritizedTaskExecutor
+     * @private
+     * @param maxPoolSize The maximum size of the pool
+     */
+    constructor(maxPoolSize) {
+        this.maxPoolSize = maxPoolSize;
+        this.currentPoolSize = 0;
+        this.queue = [];
+    }
+    /**
+     * Executes the task or queues it if no spots are available.
+     * When a task is added, check if there are spots left in the pool.
+     * If a spot is available, claim that spot and give back the spot once the asynchronous task has been resolved.
+     * When no spots are available, add the task to the task queue. The task will be executed at some point when another task has been resolved.
+     * @private
+     * @param priority The priority of the task
+     * @param fn The function that accepts the callback, which must be called upon the task completion.
+     */
+    executeOrQueue(priority, fn) {
+        if (this.currentPoolSize < this.maxPoolSize) {
+            this.currentPoolSize++;
+            fn(() => {
+                this.currentPoolSize--;
+                if (this.queue.length > 0) {
+                    this.queue.sort((a, b) => b.priority - a.priority);
+                    const item = this.queue.shift();
+                    this.executeOrQueue(item.priority, item.fn);
+                }
+            });
+        }
+        else {
+            this.queue.push({ priority, fn });
+        }
+    }
+    /**
+     * Checks if the taskExecutor is finished.
+     * @private
+     * @returns Returns `true` if the taskExecutor is finished, otherwise returns `false`.
+     */
+    finished() {
+        return this.currentPoolSize === 0;
+    }
+}
+
+/**
+ * WalkController is an interface to control how the trie is being traversed.
+ */
+class WalkController {
+    /**
+     * Creates a new WalkController
+     * @param onNode - The `FoundNodeFunction` to call if a node is found.
+     * @param trie - The `Trie` to walk on.
+     * @param poolSize - The size of the task queue.
+     */
+    constructor(onNode, trie, poolSize) {
+        this.onNode = onNode;
+        this.taskExecutor = new PrioritizedTaskExecutor(poolSize);
+        this.trie = trie;
+        this.resolve = () => { };
+        this.reject = () => { };
+    }
+    /**
+     * Async function to create and start a new walk over a trie.
+     * @param onNode - The `FoundNodeFunction to call if a node is found.
+     * @param trie - The trie to walk on.
+     * @param root - The root key to walk on.
+     * @param poolSize - Task execution pool size to prevent OOM errors. Defaults to 500.
+     */
+    static async newWalk(onNode, trie, root, poolSize) {
+        const strategy = new WalkController(onNode, trie, poolSize ?? 500);
+        await strategy.startWalk(root);
+    }
+    async startWalk(root) {
+        // eslint-disable-next-line no-async-promise-executor
+        return new Promise(async (resolve, reject) => {
+            this.resolve = resolve;
+            this.reject = reject;
+            let node;
+            try {
+                node = await this.trie.lookupNode(root);
+            }
+            catch (error) {
+                return this.reject(error);
+            }
+            this.processNode(root, node, []);
+        });
+    }
+    /**
+     * Run all children of a node. Priority of these nodes are the key length of the children.
+     * @param node - Node to get all children of and call onNode on.
+     * @param key - The current `key` which would yield the `node` when trying to get this node with a `get` operation.
+     */
+    allChildren(node, key = []) {
+        if (node instanceof LeafNode) {
+            return;
+        }
+        let children;
+        if (node instanceof ExtensionNode) {
+            children = [[node.key(), node.value()]];
+        }
+        else if (node instanceof BranchNode) {
+            children = node.getChildren().map((b) => [[b[0]], b[1]]);
+        }
+        if (!children) {
+            return;
+        }
+        for (const child of children) {
+            const keyExtension = child[0];
+            const childRef = child[1];
+            const childKey = key.concat(keyExtension);
+            const priority = childKey.length;
+            this.pushNodeToQueue(childRef, childKey, priority);
+        }
+    }
+    /**
+     * Push a node to the queue. If the queue has places left for tasks, the node is executed immediately, otherwise it is queued.
+     * @param nodeRef - Push a node reference to the event queue. This reference is a 32-byte keccak hash of the value corresponding to the `key`.
+     * @param key - The current key.
+     * @param priority - Optional priority, defaults to key length
+     */
+    pushNodeToQueue(nodeRef, key = [], priority) {
+        this.taskExecutor.executeOrQueue(priority ?? key.length, async (taskFinishedCallback) => {
+            let childNode;
+            try {
+                childNode = await this.trie.lookupNode(nodeRef);
+            }
+            catch (error) {
+                return this.reject(error);
+            }
+            taskFinishedCallback(); // this marks the current task as finished. If there are any tasks left in the queue, this will immediately execute the first task.
+            this.processNode(nodeRef, childNode, key);
+        });
+    }
+    /**
+     * Push a branch of a certain BranchNode to the event queue.
+     * @param node - The node to select a branch on. Should be a BranchNode.
+     * @param key - The current key which leads to the corresponding node.
+     * @param childIndex - The child index to add to the event queue.
+     * @param priority - Optional priority of the event, defaults to the total key length.
+     */
+    onlyBranchIndex(node, key = [], childIndex, priority) {
+        if (!(node instanceof BranchNode)) {
+            throw new Error('Expected branch node');
+        }
+        const childRef = node.getBranch(childIndex);
+        if (!childRef) {
+            throw new Error('Could not get branch of childIndex');
+        }
+        const childKey = key.slice(); // This copies the key to a new array.
+        childKey.push(childIndex);
+        const prio = priority ?? childKey.length;
+        this.pushNodeToQueue(childRef, childKey, prio);
+    }
+    processNode(nodeRef, node, key = []) {
+        this.onNode(nodeRef, node, key, this);
+        if (this.taskExecutor.finished()) {
+            // onNode should schedule new tasks. If no tasks was added and the queue is empty, then we have finished our walk.
+            this.resolve();
+        }
+    }
+}
+
+// Some more secure presets when using e.g. JS `call`
+/**
+ * The basic trie interface, use with `import { Trie } from '@ethereumjs/trie'`.
+ */
+class Trie {
+    /**
+     * Creates a new trie.
+     * @param opts Options for instantiating the trie
+     *
+     * Note: in most cases, the static {@link Trie.create} constructor should be used.  It uses the same API but provides sensible defaults
+     */
+    constructor(opts) {
+        this._opts = {
+            useKeyHashing: false,
+            useKeyHashingFunction: keccak256,
+            keyPrefix: undefined,
+            useRootPersistence: false,
+            useNodePruning: false,
+            cacheSize: 0,
+            valueEncoding: ValueEncoding.String,
+        };
+        this._lock = new Lock();
+        this._debug = debug('trie');
+        this.walkTrieIterable = _walkTrie.bind(this);
+        let valueEncoding;
+        if (opts !== undefined) {
+            // Sanity check: can only set valueEncoding if a db is provided
+            // The valueEncoding defaults to `Bytes` if no DB is provided (use a MapDB in memory)
+            if (opts?.valueEncoding !== undefined && opts.db === undefined) {
+                throw new Error('`valueEncoding` can only be set if a `db` is provided');
+            }
+            this._opts = { ...this._opts, ...opts };
+            this._opts.useKeyHashingFunction =
+                opts.common?.customCrypto.keccak256 ?? opts.useKeyHashingFunction ?? keccak256;
+            valueEncoding =
+                opts.db !== undefined ? opts.valueEncoding ?? ValueEncoding.String : ValueEncoding.Bytes;
+        }
+        else {
+            // No opts are given, so create a MapDB later on
+            // Use `Bytes` for ValueEncoding
+            valueEncoding = ValueEncoding.Bytes;
+        }
+        this.DEBUG =
+            typeof window === 'undefined' ? process?.env?.DEBUG?.includes('ethjs') ?? false : false;
+        this.debug = this.DEBUG
+            ? (message, namespaces = []) => {
+                let log = this._debug;
+                for (const name of namespaces) {
+                    log = log.extend(name);
+                }
+                log(message);
+            }
+            : (..._) => { };
+        this.database(opts?.db ?? new MapDB(), valueEncoding);
+        this.EMPTY_TRIE_ROOT = this.hash(RLP_EMPTY_STRING);
+        this._hashLen = this.EMPTY_TRIE_ROOT.length;
+        this._root = this.EMPTY_TRIE_ROOT;
+        if (opts?.root) {
+            this.root(opts.root);
+        }
+        this.DEBUG &&
+            this.debug(`Trie created:
+    || Root: ${bytesToHex$1(this.root())}
+    || Secure: ${this._opts.useKeyHashing}
+    || Persistent: ${this._opts.useRootPersistence}
+    || Pruning: ${this._opts.useNodePruning}
+    || CacheSize: ${this._opts.cacheSize}
+    || ----------------`);
+    }
+    /**
+     * Create a trie from a given (EIP-1186)[https://eips.ethereum.org/EIPS/eip-1186] proof. A proof contains the encoded trie nodes
+     * from the root node to the leaf node storing state data.
+     * @param proof an EIP-1186 proof to create trie from
+     * @param shouldVerifyRoot If `true`, verifies that the root key of the proof matches the trie root. Throws if this is not the case.
+     * @param trieOpts trie opts to be applied to returned trie
+     * @returns new trie created from given proof
+     */
+    static async createFromProof(proof, trieOpts, shouldVerifyRoot = false) {
+        const trie = new Trie(trieOpts);
+        const root = await trie.updateFromProof(proof, shouldVerifyRoot);
+        trie.root(root);
+        await trie.persistRoot();
+        return trie;
+    }
+    /**
+     * Static version of verifyProof function with the same behavior. An (EIP-1186)[https://eips.ethereum.org/EIPS/eip-1186] proof contains the encoded trie nodes
+     * from the root node to the leaf node storing state data.
+     * @param rootHash Root hash of the trie that this proof was created from and is being verified for
+     * @param key Key that is being verified and that the proof is created for
+     * @param proof An (EIP-1186)[https://eips.ethereum.org/EIPS/eip-1186] proof contains the encoded trie nodes from the root node to the leaf node storing state data.
+     * @param opts optional, the opts may include a custom hashing function to use with the trie for proof verification
+     * @throws If proof is found to be invalid.
+     * @returns The value from the key, or null if valid proof of non-existence.
+     */
+    static async verifyProof(key, proof, opts) {
+        try {
+            const proofTrie = await Trie.createFromProof(proof, opts);
+            const value = await proofTrie.get(key, true);
+            return value;
+        }
+        catch (err) {
+            throw new Error('Invalid proof provided');
+        }
+    }
+    /**
+     * A range proof is a proof that includes the encoded trie nodes from the root node to leaf node for one or more branches of a trie,
+     * allowing an entire range of leaf nodes to be validated. This is useful in applications such as snap sync where contiguous ranges
+     * of state trie data is received and validated for constructing world state, locally. Also see {@link verifyRangeProof}. A static
+     * version of this function also exists.
+     * @param rootHash - root hash of state trie this proof is being verified against.
+     * @param firstKey - first key of range being proven.
+     * @param lastKey - last key of range being proven.
+     * @param keys - key list of leaf data being proven.
+     * @param values - value list of leaf data being proven, one-to-one correspondence with keys.
+     * @param proof - proof node list, if all-elements-proof where no proof is needed, proof should be null, and both `firstKey` and `lastKey` must be null as well
+     * @param opts - optional, the opts may include a custom hashing function to use with the trie for proof verification
+     * @returns a flag to indicate whether there exists more trie node in the trie
+     */
+    static verifyRangeProof(rootHash, firstKey, lastKey, keys, values, proof, opts) {
+        return verifyRangeProof(rootHash, firstKey && bytesToNibbles(firstKey), lastKey && bytesToNibbles(lastKey), keys.map((k) => k).map(bytesToNibbles), values, proof, opts?.useKeyHashingFunction ?? keccak256);
+    }
+    /**
+     * Static version of fromProof function. If a root is provided in the opts param, the proof will be checked to have the same expected root. An
+     * (EIP-1186)[https://eips.ethereum.org/EIPS/eip-1186] proof contains the encoded trie nodes from the root node to the leaf node storing state data.
+     * @param proof An (EIP-1186)[https://eips.ethereum.org/EIPS/eip-1186] proof contains the encoded trie nodes from the root node to the leaf node storing state data.
+     * @deprecated Use `createFromProof`
+     */
+    static async fromProof(proof, opts) {
+        const trie = await Trie.create(opts);
+        if (opts?.root && !equalsBytes(opts.root, trie.hash(proof[0]))) {
+            throw new Error('Invalid proof provided');
+        }
+        const root = await trie.updateFromProof(proof);
+        trie.root(root);
+        await trie.persistRoot();
+        return trie;
+    }
+    /**
+     * A range proof is a proof that includes the encoded trie nodes from the root node to leaf node for one or more branches of a trie,
+     * allowing an entire range of leaf nodes to be validated. This is useful in applications such as snap sync where contiguous ranges
+     * of state trie data is received and validated for constructing world state, locally. Also see {@link verifyRangeProof}. A static
+     * version of this function also exists.
+     * @param rootHash - root hash of state trie this proof is being verified against.
+     * @param firstKey - first key of range being proven.
+     * @param lastKey - last key of range being proven.
+     * @param keys - key list of leaf data being proven.
+     * @param values - value list of leaf data being proven, one-to-one correspondence with keys.
+     * @param proof - proof node list, if all-elements-proof where no proof is needed, proof should be null, and both `firstKey` and `lastKey` must be null as well
+     * @returns a flag to indicate whether there exists more trie node in the trie
+     */
+    verifyRangeProof(rootHash, firstKey, lastKey, keys, values, proof) {
+        return verifyRangeProof(rootHash, firstKey && bytesToNibbles(this.appliedKey(firstKey)), lastKey && bytesToNibbles(this.appliedKey(lastKey)), keys.map((k) => this.appliedKey(k)).map(bytesToNibbles), values, proof, this._opts.useKeyHashingFunction);
+    }
+    /**
+     * Creates a proof from a trie and key that can be verified using {@link Trie.verifyProof}. An (EIP-1186)[https://eips.ethereum.org/EIPS/eip-1186] proof contains
+     * the encoded trie nodes from the root node to the leaf node storing state data. The returned proof will be in the format of an array that contains Uint8Arrays of
+     * serialized branch, extension, and/or leaf nodes.
+     * @param key key to create a proof for
+     */
+    async createProof(key) {
+        this.DEBUG && this.debug(`Creating Proof for Key: ${bytesToHex$1(key)}`, ['CREATE_PROOF']);
+        const { stack } = await this.findPath(this.appliedKey(key));
+        const p = stack.map((stackElem) => {
+            return stackElem.serialize();
+        });
+        this.DEBUG && this.debug(`Proof created with (${stack.length}) nodes`, ['CREATE_PROOF']);
+        return p;
+    }
+    /**
+     * Updates a trie from a proof by putting all the nodes in the proof into the trie. If a trie is being updated with multiple proofs, {@param shouldVerifyRoot} can
+     * be passed as false in order to not immediately throw on an unexpected root, so that root verification can happen after all proofs and their nodes have been added.
+     * An (EIP-1186)[https://eips.ethereum.org/EIPS/eip-1186] proof contains the encoded trie nodes from the root node to the leaf node storing state data.
+     * @param proof An (EIP-1186)[https://eips.ethereum.org/EIPS/eip-1186] proof to update the trie from.
+     * @param shouldVerifyRoot If `true`, verifies that the root key of the proof matches the trie root. Throws if this is not the case.
+     * @returns The root of the proof
+     */
+    async updateFromProof(proof, shouldVerifyRoot = false) {
+        this.DEBUG && this.debug(`Saving (${proof.length}) proof nodes in DB`, ['FROM_PROOF']);
+        const opStack = proof.map((nodeValue) => {
+            let key = Uint8Array.from(this.hash(nodeValue));
+            key = this._opts.keyPrefix ? concatBytes$1(this._opts.keyPrefix, key) : key;
+            return {
+                type: 'put',
+                key,
+                value: nodeValue,
+            };
+        });
+        if (shouldVerifyRoot) {
+            if (opStack[0] !== undefined && opStack[0] !== null) {
+                if (!equalsBytes(this.root(), opStack[0].key)) {
+                    throw new Error('The provided proof does not have the expected trie root');
+                }
+            }
+        }
+        await this._db.batch(opStack);
+        if (opStack[0] !== undefined) {
+            return opStack[0].key;
+        }
+    }
+    /**
+     * Verifies a proof by putting all of its nodes into a trie and attempting to get the proven key. An (EIP-1186)[https://eips.ethereum.org/EIPS/eip-1186] proof
+     * contains the encoded trie nodes from the root node to the leaf node storing state data. A static version of this function exists with the same name.
+     * @param rootHash Root hash of the trie that this proof was created from and is being verified for
+     * @param key Key that is being verified and that the proof is created for
+     * @param proof an EIP-1186 proof to verify the key against
+     * @throws If proof is found to be invalid.
+     * @returns The value from the key, or null if valid proof of non-existence.
+     */
+    async verifyProof(rootHash, key, proof) {
+        this.DEBUG &&
+            this.debug(`Verifying Proof:\n|| Key: ${bytesToHex$1(key)}\n|| Root: ${bytesToHex$1(rootHash)}\n|| Proof: (${proof.length}) nodes
+    `, ['VERIFY_PROOF']);
+        const proofTrie = new Trie({
+            root: rootHash,
+            useKeyHashingFunction: this._opts.useKeyHashingFunction,
+            common: this._opts.common,
+        });
+        try {
+            await proofTrie.updateFromProof(proof, true);
+        }
+        catch (e) {
+            throw new Error('Invalid proof nodes given');
+        }
+        try {
+            this.DEBUG &&
+                this.debug(`Verifying proof by retrieving key: ${bytesToHex$1(key)} from proof trie`, [
+                    'VERIFY_PROOF',
+                ]);
+            const value = await proofTrie.get(this.appliedKey(key), true);
+            this.DEBUG && this.debug(`PROOF VERIFIED`, ['VERIFY_PROOF']);
+            return value;
+        }
+        catch (err) {
+            if (err.message === 'Missing node in DB') {
+                throw new Error('Invalid proof provided');
+            }
+            else {
+                throw err;
+            }
+        }
+    }
+    /**
+     * Create a trie from a given (EIP-1186)[https://eips.ethereum.org/EIPS/eip-1186] proof. An EIP-1186 proof contains the encoded trie nodes from the root
+     * node to the leaf node storing state data. This function does not check if the proof has the same expected root. A static version of this function exists
+     * with the same name.
+     * @param proof an EIP-1186 proof to update the trie from
+     * @deprecated Use `updateFromProof`
+     */
+    async fromProof(proof) {
+        await this.updateFromProof(proof, false);
+        if (equalsBytes(this.root(), this.EMPTY_TRIE_ROOT) && proof[0] !== undefined) {
+            let rootKey = Uint8Array.from(this.hash(proof[0]));
+            // TODO: what if we have keyPrefix and we set root? This should not work, right? (all trie nodes are non-reachable)
+            rootKey = this._opts.keyPrefix ? concatBytes$1(this._opts.keyPrefix, rootKey) : rootKey;
+            this.root(rootKey);
+            await this.persistRoot();
+        }
+        return;
+    }
+    static async create(opts) {
+        const keccakFunction = opts?.common?.customCrypto.keccak256 ?? opts?.useKeyHashingFunction ?? keccak256;
+        let key = ROOT_DB_KEY;
+        const encoding = opts?.valueEncoding === ValueEncoding.Bytes ? ValueEncoding.Bytes : ValueEncoding.String;
+        if (opts?.useKeyHashing === true) {
+            key = keccakFunction.call(undefined, ROOT_DB_KEY);
+        }
+        if (opts?.keyPrefix !== undefined) {
+            key = concatBytes$1(opts.keyPrefix, key);
+        }
+        if (opts?.db !== undefined && opts?.useRootPersistence === true) {
+            if (opts?.root === undefined) {
+                const root = await opts?.db.get(bytesToUnprefixedHex(key), {
+                    keyEncoding: KeyEncoding.String,
+                    valueEncoding: encoding,
+                });
+                if (typeof root === 'string') {
+                    opts.root = unprefixedHexToBytes(root);
+                }
+                else {
+                    opts.root = root;
+                }
+            }
+            else {
+                await opts?.db.put(bytesToUnprefixedHex(key), (encoding === ValueEncoding.Bytes ? opts.root : bytesToUnprefixedHex(opts.root)), {
+                    keyEncoding: KeyEncoding.String,
+                    valueEncoding: encoding,
+                });
+            }
+        }
+        return new Trie(opts);
+    }
+    database(db, valueEncoding) {
+        if (db !== undefined) {
+            if (db instanceof CheckpointDB) {
+                throw new Error('Cannot pass in an instance of CheckpointDB');
+            }
+            this._db = new CheckpointDB({ db, cacheSize: this._opts.cacheSize, valueEncoding });
+        }
+        return this._db;
+    }
+    /**
+     * Gets and/or Sets the current root of the `trie`
+     */
+    root(value) {
+        if (value !== undefined) {
+            if (value === null) {
+                value = this.EMPTY_TRIE_ROOT;
+            }
+            this.DEBUG && this.debug(`Setting root to ${bytesToHex$1(value)}`);
+            if (value.length !== this._hashLen) {
+                throw new Error(`Invalid root length. Roots are ${this._hashLen} bytes, got ${value.length} bytes`);
+            }
+            this._root = value;
+        }
+        return this._root;
+    }
+    /**
+     * Checks if a given root exists.
+     */
+    async checkRoot(root) {
+        try {
+            const value = await this.lookupNode(root);
+            return value !== null;
+        }
+        catch (error) {
+            if (error.message === 'Missing node in DB') {
+                return equalsBytes(root, this.EMPTY_TRIE_ROOT);
+            }
+            else {
+                throw error;
+            }
+        }
+    }
+    /**
+     * Gets a value given a `key`
+     * @param key - the key to search for
+     * @param throwIfMissing - if true, throws if any nodes are missing. Used for verifying proofs. (default: false)
+     * @returns A Promise that resolves to `Uint8Array` if a value was found or `null` if no value was found.
+     */
+    async get(key, throwIfMissing = false) {
+        this.DEBUG && this.debug(`Key: ${bytesToHex$1(key)}`, ['GET']);
+        const { node, remaining } = await this.findPath(this.appliedKey(key), throwIfMissing);
+        let value = null;
+        if (node && remaining.length === 0) {
+            value = node.value();
+        }
+        this.DEBUG && this.debug(`Value: ${value === null ? 'null' : bytesToHex$1(value)}`, ['GET']);
+        return value;
+    }
+    /**
+     * Stores a given `value` at the given `key` or do a delete if `value` is empty
+     * (delete operations are only executed on DB with `deleteFromDB` set to `true`)
+     * @param key
+     * @param value
+     * @returns A Promise that resolves once value is stored.
+     */
+    async put(key, value, skipKeyTransform = false) {
+        this.DEBUG && this.debug(`Key: ${bytesToHex$1(key)}`, ['PUT']);
+        this.DEBUG && this.debug(`Value: ${value === null ? 'null' : bytesToHex$1(key)}`, ['PUT']);
+        if (this._opts.useRootPersistence && equalsBytes(key, ROOT_DB_KEY) === true) {
+            throw new Error(`Attempted to set '${bytesToUtf8(ROOT_DB_KEY)}' key but it is not allowed.`);
+        }
+        // If value is empty, delete
+        if (value === null || value.length === 0) {
+            return this.del(key);
+        }
+        await this._lock.acquire();
+        const appliedKey = skipKeyTransform ? key : this.appliedKey(key);
+        if (equalsBytes(this.root(), this.EMPTY_TRIE_ROOT) === true) {
+            // If no root, initialize this trie
+            await this._createInitialNode(appliedKey, value);
+        }
+        else {
+            // First try to find the given key or its nearest node
+            const { remaining, stack } = await this.findPath(appliedKey);
+            let ops = [];
+            if (this._opts.useNodePruning) {
+                const val = await this.get(key);
+                // Only delete keys if it either does not exist, or if it gets updated
+                // (The update will update the hash of the node, thus we can delete the original leaf node)
+                if (val === null || equalsBytes(val, value) === false) {
+                    // All items of the stack are going to change.
+                    // (This is the path from the root node to wherever it needs to insert nodes)
+                    // The items change, because the leaf value is updated, thus all keyhashes in the
+                    // stack should be updated as well, so that it points to the right key/value pairs of the path
+                    const deleteHashes = stack.map((e) => this.hash(e.serialize()));
+                    ops = deleteHashes.map((e) => {
+                        const key = this._opts.keyPrefix ? concatBytes$1(this._opts.keyPrefix, e) : e;
+                        return {
+                            type: 'del',
+                            key,
+                            opts: {
+                                keyEncoding: KeyEncoding.Bytes,
+                            },
+                        };
+                    });
+                }
+            }
+            // then update
+            await this._updateNode(appliedKey, value, remaining, stack);
+            if (this._opts.useNodePruning) {
+                // Only after updating the node we can delete the keyhashes
+                await this._db.batch(ops);
+            }
+        }
+        await this.persistRoot();
+        this._lock.release();
+    }
+    /**
+     * Deletes a value given a `key` from the trie
+     * (delete operations are only executed on DB with `deleteFromDB` set to `true`)
+     * @param key
+     * @returns A Promise that resolves once value is deleted.
+     */
+    async del(key, skipKeyTransform = false) {
+        this.DEBUG && this.debug(`Key: ${bytesToHex$1(key)}`, ['DEL']);
+        await this._lock.acquire();
+        const appliedKey = skipKeyTransform ? key : this.appliedKey(key);
+        const { node, stack } = await this.findPath(appliedKey);
+        let ops = [];
+        // Only delete if the `key` currently has any value
+        if (this._opts.useNodePruning && node !== null) {
+            const deleteHashes = stack.map((e) => this.hash(e.serialize()));
+            // Just as with `put`, the stack items all will have their keyhashes updated
+            // So after deleting the node, one can safely delete these from the DB
+            ops = deleteHashes.map((e) => {
+                const key = this._opts.keyPrefix ? concatBytes$1(this._opts.keyPrefix, e) : e;
+                return {
+                    type: 'del',
+                    key,
+                    opts: {
+                        keyEncoding: KeyEncoding.Bytes,
+                    },
+                };
+            });
+        }
+        if (node) {
+            await this._deleteNode(appliedKey, stack);
+        }
+        if (this._opts.useNodePruning) {
+            // Only after deleting the node it is possible to delete the keyhashes
+            await this._db.batch(ops);
+        }
+        await this.persistRoot();
+        this._lock.release();
+    }
+    /**
+     * Tries to find a path to the node for the given key.
+     * It returns a `stack` of nodes to the closest node.
+     * @param key - the search key
+     * @param throwIfMissing - if true, throws if any nodes are missing. Used for verifying proofs. (default: false)
+     */
+    async findPath(key, throwIfMissing = false, partialPath = {
+        stack: [],
+    }) {
+        const targetKey = bytesToNibbles(key);
+        const keyLen = targetKey.length;
+        const stack = Array.from({ length: keyLen });
+        let progress = 0;
+        for (let i = 0; i < partialPath.stack.length - 1; i++) {
+            stack[i] = partialPath.stack[i];
+            progress += stack[i] instanceof BranchNode ? 1 : stack[i].keyLength();
+        }
+        this.DEBUG && this.debug(`Target (${targetKey.length}): [${targetKey}]`, ['FIND_PATH']);
+        let result = null;
+        const onFound = async (_, node, keyProgress, walkController) => {
+            stack[progress] = node;
+            if (node instanceof BranchNode) {
+                if (progress === keyLen) {
+                    result = { node, remaining: [], stack };
+                }
+                else {
+                    const branchIndex = targetKey[progress];
+                    this.DEBUG &&
+                        this.debug(`Looking for node on branch index: [${branchIndex}]`, [
+                            'FIND_PATH',
+                            'BranchNode',
+                        ]);
+                    const branchNode = node.getBranch(branchIndex);
+                    this.DEBUG &&
+                        this.debug(branchNode === null
+                            ? 'NULL'
+                            : branchNode instanceof Uint8Array
+                                ? `NodeHash: ${bytesToHex$1(branchNode)}`
+                                : `Raw_Node: ${branchNode.toString()}`, ['FIND_PATH', 'BranchNode', branchIndex.toString()]);
+                    if (!branchNode) {
+                        result = { node: null, remaining: targetKey.slice(progress), stack };
+                    }
+                    else {
+                        progress++;
+                        walkController.onlyBranchIndex(node, keyProgress, branchIndex);
+                    }
+                }
+            }
+            else if (node instanceof LeafNode) {
+                const _progress = progress;
+                if (keyLen - progress > node.key().length) {
+                    result = { node: null, remaining: targetKey.slice(_progress), stack };
+                    return;
+                }
+                for (const k of node.key()) {
+                    if (k !== targetKey[progress]) {
+                        result = { node: null, remaining: targetKey.slice(_progress), stack };
+                        return;
+                    }
+                    progress++;
+                }
+                result = { node, remaining: [], stack };
+            }
+            else if (node instanceof ExtensionNode) {
+                this.DEBUG &&
+                    this.debug(`Comparing node key to expected\n|| Node_Key: [${node.key()}]\n|| Expected: [${targetKey.slice(progress, progress + node.key().length)}]\n|| Matching: [${targetKey.slice(progress, progress + node.key().length).toString() ===
+                        node.key().toString()}]
+            `, ['FIND_PATH', 'ExtensionNode']);
+                const _progress = progress;
+                for (const k of node.key()) {
+                    this.DEBUG && this.debug(`NextNode: ${node.value()}`, ['FIND_PATH', 'ExtensionNode']);
+                    if (k !== targetKey[progress]) {
+                        result = { node: null, remaining: targetKey.slice(_progress), stack };
+                        return;
+                    }
+                    progress++;
+                }
+                walkController.allChildren(node, keyProgress);
+            }
+        };
+        const startingNode = partialPath.stack[partialPath.stack.length - 1];
+        const start = startingNode !== undefined ? this.hash(startingNode?.serialize()) : this.root();
+        try {
+            this.DEBUG &&
+                this.debug(`Walking trie from ${startingNode === undefined ? 'ROOT' : 'NODE'}: ${bytesToHex$1(start)}`, ['FIND_PATH']);
+            await this.walkTrie(start, onFound);
+        }
+        catch (error) {
+            if (error.message !== 'Missing node in DB' || throwIfMissing) {
+                throw error;
+            }
+        }
+        if (result === null) {
+            result = { node: null, remaining: [], stack };
+        }
+        this.DEBUG &&
+            this.debug(result.node !== null
+                ? `Target Node FOUND for ${bytesToNibbles(key)}`
+                : `Target Node NOT FOUND`, ['FIND_PATH']);
+        result.stack = result.stack.filter((e) => e !== undefined);
+        this.DEBUG &&
+            this.debug(`Result:
+        || Node: ${result.node === null ? 'null' : result.node.constructor.name}
+        || Remaining: [${result.remaining}]\n|| Stack: ${result.stack
+                .map((e) => e.constructor.name)
+                .join(', ')}`, ['FIND_PATH']);
+        return result;
+    }
+    /**
+     * Walks a trie until finished.
+     * @param root
+     * @param onFound - callback to call when a node is found. This schedules new tasks. If no tasks are available, the Promise resolves.
+     * @returns Resolves when finished walking trie.
+     */
+    async walkTrie(root, onFound) {
+        await WalkController.newWalk(onFound, this, root);
+    }
+    /**
+     * Executes a callback for each node in the trie.
+     * @param onFound - callback to call when a node is found.
+     * @returns Resolves when finished walking trie.
+     */
+    async walkAllNodes(onFound) {
+        for await (const { node, currentKey } of this.walkTrieIterable(this.root())) {
+            await onFound(node, currentKey);
+        }
+    }
+    /**
+     * Executes a callback for each value node in the trie.
+     * @param onFound - callback to call when a node is found.
+     * @returns Resolves when finished walking trie.
+     */
+    async walkAllValueNodes(onFound) {
+        for await (const { node, currentKey } of this.walkTrieIterable(this.root(), [], undefined, async (node) => {
+            return node instanceof LeafNode || (node instanceof BranchNode && node.value() !== null);
+        })) {
+            await onFound(node, currentKey);
+        }
+    }
+    /**
+     * Creates the initial node from an empty tree.
+     * @private
+     */
+    async _createInitialNode(key, value) {
+        const newNode = new LeafNode(bytesToNibbles(key), value);
+        const encoded = newNode.serialize();
+        this.root(this.hash(encoded));
+        let rootKey = this.root();
+        rootKey = this._opts.keyPrefix ? concatBytes$1(this._opts.keyPrefix, rootKey) : rootKey;
+        await this._db.put(rootKey, encoded);
+        await this.persistRoot();
+    }
+    /**
+     * Retrieves a node from db by hash.
+     */
+    async lookupNode(node) {
+        if (isRawNode(node)) {
+            const decoded = decodeRawNode(node);
+            this.DEBUG && this.debug(`${decoded.constructor.name}`, ['LOOKUP_NODE', 'RAW_NODE']);
+            return decoded;
+        }
+        this.DEBUG && this.debug(`${`${bytesToHex$1(node)}`}`, ['LOOKUP_NODE', 'BY_HASH']);
+        const key = this._opts.keyPrefix ? concatBytes$1(this._opts.keyPrefix, node) : node;
+        const value = (await this._db.get(key)) ?? null;
+        if (value === null) {
+            // Dev note: this error message text is used for error checking in `checkRoot`, `verifyProof`, and `findPath`
+            throw new Error('Missing node in DB');
+        }
+        const decoded = decodeNode(value);
+        this.DEBUG && this.debug(`${decoded.constructor.name} found in DB`, ['LOOKUP_NODE', 'BY_HASH']);
+        return decoded;
+    }
+    /**
+     * Updates a node.
+     * @private
+     * @param key
+     * @param value
+     * @param keyRemainder
+     * @param stack
+     */
+    async _updateNode(k, value, keyRemainder, stack) {
+        const toSave = [];
+        const lastNode = stack.pop();
+        if (!lastNode) {
+            throw new Error('Stack underflow');
+        }
+        // add the new nodes
+        const key = bytesToNibbles(k);
+        // Check if the last node is a leaf and the key matches to this
+        let matchLeaf = false;
+        if (lastNode instanceof LeafNode) {
+            let l = 0;
+            for (let i = 0; i < stack.length; i++) {
+                const n = stack[i];
+                if (n instanceof BranchNode) {
+                    l++;
+                }
+                else {
+                    l += n.key().length;
+                }
+            }
+            if (matchingNibbleLength(lastNode.key(), key.slice(l)) === lastNode.key().length &&
+                keyRemainder.length === 0) {
+                matchLeaf = true;
+            }
+        }
+        if (matchLeaf) {
+            // just updating a found value
+            lastNode.value(value);
+            stack.push(lastNode);
+        }
+        else if (lastNode instanceof BranchNode) {
+            stack.push(lastNode);
+            if (keyRemainder.length !== 0) {
+                // add an extension to a branch node
+                keyRemainder.shift();
+                // create a new leaf
+                const newLeaf = new LeafNode(keyRemainder, value);
+                stack.push(newLeaf);
+            }
+            else {
+                lastNode.value(value);
+            }
+        }
+        else {
+            // create a branch node
+            const lastKey = lastNode.key();
+            const matchingLength = matchingNibbleLength(lastKey, keyRemainder);
+            const newBranchNode = new BranchNode();
+            // create a new extension node
+            if (matchingLength !== 0) {
+                const newKey = lastNode.key().slice(0, matchingLength);
+                const newExtNode = new ExtensionNode(newKey, value);
+                stack.push(newExtNode);
+                lastKey.splice(0, matchingLength);
+                keyRemainder.splice(0, matchingLength);
+            }
+            stack.push(newBranchNode);
+            if (lastKey.length !== 0) {
+                const branchKey = lastKey.shift();
+                if (lastKey.length !== 0 || lastNode instanceof LeafNode) {
+                    // shrinking extension or leaf
+                    lastNode.key(lastKey);
+                    const formattedNode = this._formatNode(lastNode, false, toSave);
+                    newBranchNode.setBranch(branchKey, formattedNode);
+                }
+                else {
+                    // remove extension or attaching
+                    this._formatNode(lastNode, false, toSave, true);
+                    newBranchNode.setBranch(branchKey, lastNode.value());
+                }
+            }
+            else {
+                newBranchNode.value(lastNode.value());
+            }
+            if (keyRemainder.length !== 0) {
+                keyRemainder.shift();
+                // add a leaf node to the new branch node
+                const newLeafNode = new LeafNode(keyRemainder, value);
+                stack.push(newLeafNode);
+            }
+            else {
+                newBranchNode.value(value);
+            }
+        }
+        await this.saveStack(key, stack, toSave);
+    }
+    /**
+     * Deletes a node from the trie.
+     * @private
+     */
+    async _deleteNode(k, stack) {
+        const processBranchNode = (key, branchKey, branchNode, parentNode, stack) => {
+            // branchNode is the node ON the branch node not THE branch node
+            if (parentNode === null || parentNode === undefined || parentNode instanceof BranchNode) {
+                // branch->?
+                if (parentNode !== null && parentNode !== undefined) {
+                    stack.push(parentNode);
+                }
+                if (branchNode instanceof BranchNode) {
+                    // create an extension node
+                    // branch->extension->branch
+                    // @ts-ignore
+                    const extensionNode = new ExtensionNode([branchKey], null);
+                    stack.push(extensionNode);
+                    key.push(branchKey);
+                }
+                else {
+                    const branchNodeKey = branchNode.key();
+                    // branch key is an extension or a leaf
+                    // branch->(leaf or extension)
+                    branchNodeKey.unshift(branchKey);
+                    branchNode.key(branchNodeKey.slice(0));
+                    key = key.concat(branchNodeKey);
+                }
+                stack.push(branchNode);
+            }
+            else {
+                // parent is an extension
+                let parentKey = parentNode.key();
+                if (branchNode instanceof BranchNode) {
+                    // ext->branch
+                    parentKey.push(branchKey);
+                    key.push(branchKey);
+                    parentNode.key(parentKey);
+                    stack.push(parentNode);
+                }
+                else {
+                    const branchNodeKey = branchNode.key();
+                    // branch node is an leaf or extension and parent node is an extension
+                    // add two keys together
+                    // don't push the parent node
+                    branchNodeKey.unshift(branchKey);
+                    key = key.concat(branchNodeKey);
+                    parentKey = parentKey.concat(branchNodeKey);
+                    branchNode.key(parentKey);
+                }
+                stack.push(branchNode);
+            }
+            return key;
+        };
+        let lastNode = stack.pop();
+        if (lastNode === undefined)
+            throw new Error('missing last node');
+        let parentNode = stack.pop();
+        const opStack = [];
+        let key = bytesToNibbles(k);
+        if (!parentNode) {
+            // the root here has to be a leaf.
+            this.root(this.EMPTY_TRIE_ROOT);
+            return;
+        }
+        if (lastNode instanceof BranchNode) {
+            lastNode.value(null);
+        }
+        else {
+            // the lastNode has to be a leaf if it's not a branch.
+            // And a leaf's parent, if it has one, must be a branch.
+            if (!(parentNode instanceof BranchNode)) {
+                throw new Error('Expected branch node');
+            }
+            const lastNodeKey = lastNode.key();
+            key.splice(key.length - lastNodeKey.length);
+            // delete the value
+            this._formatNode(lastNode, false, opStack, true);
+            parentNode.setBranch(key.pop(), null);
+            lastNode = parentNode;
+            parentNode = stack.pop();
+        }
+        // nodes on the branch
+        // count the number of nodes on the branch
+        const branchNodes = lastNode.getChildren();
+        // if there is only one branch node left, collapse the branch node
+        if (branchNodes.length === 1) {
+            // add the one remaining branch node to node above it
+            const branchNode = branchNodes[0][1];
+            const branchNodeKey = branchNodes[0][0];
+            // Special case where one needs to delete an extra node:
+            // In this case, after updating the branch, the branch node has just one branch left
+            // However, this violates the trie spec; this should be converted in either an ExtensionNode
+            // Or a LeafNode
+            // Since this branch is deleted, one can thus also delete this branch from the DB
+            // So add this to the `opStack` and mark the keyhash to be deleted
+            if (this._opts.useNodePruning) {
+                opStack.push({
+                    type: 'del',
+                    key: branchNode,
+                });
+            }
+            // look up node
+            const foundNode = await this.lookupNode(branchNode);
+            // if (foundNode) {
+            key = processBranchNode(key, branchNodeKey, foundNode, parentNode, stack);
+            await this.saveStack(key, stack, opStack);
+            // }
+        }
+        else {
+            // simple removing a leaf and recalculation the stack
+            if (parentNode) {
+                stack.push(parentNode);
+            }
+            stack.push(lastNode);
+            await this.saveStack(key, stack, opStack);
+        }
+    }
+    /**
+     * Saves a stack of nodes to the database.
+     *
+     * @param key - the key. Should follow the stack
+     * @param stack - a stack of nodes to the value given by the key
+     * @param opStack - a stack of levelup operations to commit at the end of this function
+     */
+    async saveStack(key, stack, opStack) {
+        let lastRoot;
+        // update nodes
+        while (stack.length) {
+            const node = stack.pop();
+            if (node instanceof LeafNode) {
+                key.splice(key.length - node.key().length);
+            }
+            else if (node instanceof ExtensionNode) {
+                key.splice(key.length - node.key().length);
+                if (lastRoot) {
+                    node.value(lastRoot);
+                }
+            }
+            else if (node instanceof BranchNode) {
+                if (lastRoot) {
+                    const branchKey = key.pop();
+                    node.setBranch(branchKey, lastRoot);
+                }
+            }
+            lastRoot = this._formatNode(node, stack.length === 0, opStack);
+        }
+        if (lastRoot) {
+            this.root(lastRoot);
+        }
+        await this._db.batch(opStack);
+        await this.persistRoot();
+    }
+    /**
+     * Formats node to be saved by `levelup.batch`.
+     * @private
+     * @param node - the node to format.
+     * @param topLevel - if the node is at the top level.
+     * @param opStack - the opStack to push the node's data.
+     * @param remove - whether to remove the node
+     * @returns The node's hash used as the key or the rawNode.
+     */
+    _formatNode(node, topLevel, opStack, remove = false) {
+        const encoded = node.serialize();
+        if (encoded.length >= 32 || topLevel) {
+            const lastRoot = this.hash(encoded);
+            const key = this._opts.keyPrefix ? concatBytes$1(this._opts.keyPrefix, lastRoot) : lastRoot;
+            if (remove) {
+                if (this._opts.useNodePruning) {
+                    opStack.push({
+                        type: 'del',
+                        key,
+                    });
+                }
+            }
+            else {
+                opStack.push({
+                    type: 'put',
+                    key,
+                    value: encoded,
+                });
+            }
+            return lastRoot;
+        }
+        return node.raw();
+    }
+    /**
+     * The given hash of operations (key additions or deletions) are executed on the trie
+     * (delete operations are only executed on DB with `deleteFromDB` set to `true`)
+     * @example
+     * const ops = [
+     *    { type: 'del', key: Uint8Array.from('father') }
+     *  , { type: 'put', key: Uint8Array.from('name'), value: Uint8Array.from('Yuri Irsenovich Kim') }
+     *  , { type: 'put', key: Uint8Array.from('dob'), value: Uint8Array.from('16 February 1941') }
+     *  , { type: 'put', key: Uint8Array.from('spouse'), value: Uint8Array.from('Kim Young-sook') }
+     *  , { type: 'put', key: Uint8Array.from('occupation'), value: Uint8Array.from('Clown') }
+     * ]
+     * await trie.batch(ops)
+     * @param ops
+     */
+    async batch(ops, skipKeyTransform) {
+        for (const op of ops) {
+            if (op.type === 'put') {
+                if (op.value === null || op.value === undefined) {
+                    throw new Error('Invalid batch db operation');
+                }
+                await this.put(op.key, op.value, skipKeyTransform);
+            }
+            else if (op.type === 'del') {
+                await this.del(op.key, skipKeyTransform);
+            }
+        }
+        await this.persistRoot();
+    }
+    // This method verifies if all keys in the trie (except the root) are reachable
+    // If one of the key is not reachable, then that key could be deleted from the DB
+    // (i.e. the Trie is not correctly pruned)
+    // If this method returns `true`, the Trie is correctly pruned and all keys are reachable
+    async verifyPrunedIntegrity() {
+        const roots = [
+            bytesToUnprefixedHex(this.root()),
+            bytesToUnprefixedHex(this.appliedKey(ROOT_DB_KEY)),
+        ];
+        for (const dbkey of this._db.db._database.keys()) {
+            if (roots.includes(dbkey)) {
+                // The root key can never be found from the trie, otherwise this would
+                // convert the tree from a directed acyclic graph to a directed cycling graph
+                continue;
+            }
+            // Track if key is found
+            let found = false;
+            try {
+                await this.walkTrie(this.root(), async function (nodeRef, node, key, controller) {
+                    if (found) {
+                        // Abort all other children checks
+                        return;
+                    }
+                    if (node instanceof BranchNode) {
+                        for (const item of node._branches) {
+                            // If one of the branches matches the key, then it is found
+                            if (item !== null && bytesToUnprefixedHex(item) === dbkey) {
+                                found = true;
+                                return;
+                            }
+                        }
+                        // Check all children of the branch
+                        controller.allChildren(node, key);
+                    }
+                    if (node instanceof ExtensionNode) {
+                        // If the value of the ExtensionNode points to the dbkey, then it is found
+                        if (bytesToUnprefixedHex(node.value()) === dbkey) {
+                            found = true;
+                            return;
+                        }
+                        controller.allChildren(node, key);
+                    }
+                });
+            }
+            catch {
+                return false;
+            }
+            if (!found) {
+                return false;
+            }
+        }
+        return true;
+    }
+    /**
+     * The `data` event is given an `Object` that has two properties; the `key` and the `value`. Both should be Uint8Arrays.
+     * @return Returns a [stream](https://nodejs.org/dist/latest-v12.x/docs/api/stream.html#stream_class_stream_readable) of the contents of the `trie`
+     */
+    createReadStream() {
+        return new TrieReadStream(this);
+    }
+    /**
+     * Returns a copy of the underlying trie.
+     *
+     * Note on db: the copy will create a reference to the
+     * same underlying database.
+     *
+     * Note on cache: for memory reasons a copy will by default
+     * not recreate a new LRU cache but initialize with cache
+     * being deactivated. This behavior can be overwritten by
+     * explicitly setting `cacheSize` as an option on the method.
+     *
+     * @param includeCheckpoints - If true and during a checkpoint, the copy will contain the checkpointing metadata and will use the same scratch as underlying db.
+     */
+    shallowCopy(includeCheckpoints = true, opts) {
+        const trie = new Trie({
+            ...this._opts,
+            db: this._db.db.shallowCopy(),
+            root: this.root(),
+            cacheSize: 0,
+            ...(opts ?? {}),
+        });
+        if (includeCheckpoints && this.hasCheckpoints()) {
+            trie._db.setCheckpoints(this._db.checkpoints);
+        }
+        return trie;
+    }
+    /**
+     * Persists the root hash in the underlying database
+     */
+    async persistRoot() {
+        if (this._opts.useRootPersistence) {
+            this.DEBUG &&
+                this.debug(`Persisting root: \n|| RootHash: ${bytesToHex$1(this.root())}\n|| RootKey: ${bytesToHex$1(this.appliedKey(ROOT_DB_KEY))}`, ['PERSIST_ROOT']);
+            let key = this.appliedKey(ROOT_DB_KEY);
+            key = this._opts.keyPrefix ? concatBytes$1(this._opts.keyPrefix, key) : key;
+            await this._db.put(key, this.root());
+        }
+    }
+    /**
+     * Finds all nodes that are stored directly in the db
+     * (some nodes are stored raw inside other nodes)
+     * called by {@link ScratchReadStream}
+     * @private
+     */
+    async _findDbNodes(onFound) {
+        const outerOnFound = async (nodeRef, node, key, walkController) => {
+            if (isRawNode(nodeRef)) {
+                if (node !== null) {
+                    walkController.allChildren(node, key);
+                }
+            }
+            else {
+                onFound(nodeRef, node, key, walkController);
+            }
+        };
+        await this.walkTrie(this.root(), outerOnFound);
+    }
+    /**
+     * Returns the key practically applied for trie construction
+     * depending on the `useKeyHashing` option being set or not.
+     * @param key
+     */
+    appliedKey(key) {
+        if (this._opts.useKeyHashing) {
+            return this.hash(key);
+        }
+        return key;
+    }
+    hash(msg) {
+        return Uint8Array.from(this._opts.useKeyHashingFunction.call(undefined, msg));
+    }
+    /**
+     * Is the trie during a checkpoint phase?
+     */
+    hasCheckpoints() {
+        return this._db.hasCheckpoints();
+    }
+    /**
+     * Creates a checkpoint that can later be reverted to or committed.
+     * After this is called, all changes can be reverted until `commit` is called.
+     */
+    checkpoint() {
+        this.DEBUG && this.debug(`${bytesToHex$1(this.root())}`, ['CHECKPOINT']);
+        this._db.checkpoint(this.root());
+    }
+    /**
+     * Commits a checkpoint to disk, if current checkpoint is not nested.
+     * If nested, only sets the parent checkpoint as current checkpoint.
+     * @throws If not during a checkpoint phase
+     */
+    async commit() {
+        if (!this.hasCheckpoints()) {
+            throw new Error('trying to commit when not checkpointed');
+        }
+        this.DEBUG && this.debug(`${bytesToHex$1(this.root())}`, ['COMMIT']);
+        await this._lock.acquire();
+        await this._db.commit();
+        await this.persistRoot();
+        this._lock.release();
+    }
+    /**
+     * Reverts the trie to the state it was at when `checkpoint` was first called.
+     * If during a nested checkpoint, sets root to most recent checkpoint, and sets
+     * parent checkpoint as current.
+     */
+    async revert() {
+        if (!this.hasCheckpoints()) {
+            throw new Error('trying to revert when not checkpointed');
+        }
+        this.DEBUG && this.debug(`${bytesToHex$1(this.root())}`, ['REVERT', 'BEFORE']);
+        await this._lock.acquire();
+        this.root(await this._db.revert());
+        await this.persistRoot();
+        this._lock.release();
+        this.DEBUG && this.debug(`${bytesToHex$1(this.root())}`, ['REVERT', 'AFTER']);
+    }
+    /**
+     * Flushes all checkpoints, restoring the initial checkpoint state.
+     */
+    flushCheckpoints() {
+        this.DEBUG &&
+            this.debug(`Deleting ${this._db.checkpoints.length} checkpoints.`, ['FLUSH_CHECKPOINTS']);
+        this._db.checkpoints = [];
+    }
+}
+
+// reference: https://github.com/ethereum/go-ethereum/blob/20356e57b119b4e70ce47665a71964434e15200d/trie/proof.go
+/**
+ * unset will remove all nodes to the left or right of the target key(decided by `removeLeft`).
+ * @param trie - trie object.
+ * @param parent - parent node, it can be `null`.
+ * @param child - child node.
+ * @param key - target nibbles.
+ * @param pos - key position.
+ * @param removeLeft - remove all nodes to the left or right of the target key.
+ * @param stack - a stack of modified nodes.
+ * @returns The end position of key.
+ */
+async function unset(trie, parent, child, key, pos, removeLeft, stack) {
+    if (child instanceof BranchNode) {
+        /**
+         * This node is a branch node,
+         * remove all branches on the left or right
+         */
+        if (removeLeft) {
+            for (let i = 0; i < key[pos]; i++) {
+                child.setBranch(i, null);
+            }
+        }
+        else {
+            for (let i = key[pos] + 1; i < 16; i++) {
+                child.setBranch(i, null);
+            }
+        }
+        // record this node on the stack
+        stack.push(child);
+        // continue to the next node
+        const next = child.getBranch(key[pos]);
+        const _child = next && (await trie.lookupNode(next));
+        return unset(trie, child, _child, key, pos + 1, removeLeft, stack);
+    }
+    else if (child instanceof ExtensionNode || child instanceof LeafNode) {
+        /**
+         * This node is an extension node or lead node,
+         * if node._nibbles is less or greater than the target key,
+         * remove self from parent
+         */
+        if (key.length - pos < child.keyLength() ||
+            nibblesCompare(child._nibbles, key.slice(pos, pos + child.keyLength())) !== 0) {
+            if (removeLeft) {
+                if (nibblesCompare(child._nibbles, key.slice(pos)) < 0) {
+                    parent.setBranch(key[pos - 1], null);
+                }
+            }
+            else {
+                if (nibblesCompare(child._nibbles, key.slice(pos)) > 0) {
+                    parent.setBranch(key[pos - 1], null);
+                }
+            }
+            return pos - 1;
+        }
+        if (child instanceof LeafNode) {
+            parent.setBranch(key[pos - 1], null);
+            return pos - 1;
+        }
+        else {
+            const _child = await trie.lookupNode(child.value());
+            if (_child instanceof LeafNode) {
+                parent.setBranch(key[pos - 1], null);
+                return pos - 1;
+            }
+            // record this node on the stack
+            stack.push(child);
+            // continue to the next node
+            return unset(trie, child, _child, key, pos + child.keyLength(), removeLeft, stack);
+        }
+    }
+    else if (child === null) {
+        return pos - 1;
+    }
+    else {
+        throw new Error('invalid node');
+    }
+}
+/**
+ * unsetInternal will remove all nodes between `left` and `right` (including `left` and `right`)
+ * @param trie - trie object.
+ * @param left - left nibbles.
+ * @param right - right nibbles.
+ * @returns Is it an empty trie.
+ */
+async function unsetInternal(trie, left, right) {
+    // Key position
+    let pos = 0;
+    // Parent node
+    let parent = null;
+    // Current node
+    let node = await trie.lookupNode(trie.root());
+    let shortForkLeft;
+    let shortForkRight;
+    // A stack of modified nodes.
+    const stack = [];
+    // 1. Find the fork point of `left` and `right`
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+        if (node instanceof ExtensionNode || node instanceof LeafNode) {
+            // record this node on the stack
+            stack.push(node);
+            if (left.length - pos < node.keyLength()) {
+                shortForkLeft = nibblesCompare(left.slice(pos), node._nibbles);
+            }
+            else {
+                shortForkLeft = nibblesCompare(left.slice(pos, pos + node.keyLength()), node._nibbles);
+            }
+            if (right.length - pos < node.keyLength()) {
+                shortForkRight = nibblesCompare(right.slice(pos), node._nibbles);
+            }
+            else {
+                shortForkRight = nibblesCompare(right.slice(pos, pos + node.keyLength()), node._nibbles);
+            }
+            // If one of `left` and `right` is not equal to node._nibbles, it means we found the fork point
+            if (shortForkLeft !== 0 || shortForkRight !== 0) {
+                break;
+            }
+            if (node instanceof LeafNode) {
+                // it shouldn't happen
+                throw new Error('invalid node');
+            }
+            // continue to the next node
+            parent = node;
+            pos += node.keyLength();
+            node = await trie.lookupNode(node.value());
+        }
+        else if (node instanceof BranchNode) {
+            // record this node on the stack
+            stack.push(node);
+            const leftNode = node.getBranch(left[pos]);
+            const rightNode = node.getBranch(right[pos]);
+            // One of `left` and `right` is `null`, stop searching
+            if (leftNode === null || rightNode === null) {
+                break;
+            }
+            // Stop searching if `left` and `right` are not equal
+            if (!(leftNode instanceof Uint8Array)) {
+                if (rightNode instanceof Uint8Array) {
+                    break;
+                }
+                if (leftNode.length !== rightNode.length) {
+                    break;
+                }
+                let abort = false;
+                for (let i = 0; i < leftNode.length; i++) {
+                    if (!equalsBytes(leftNode[i], rightNode[i])) {
+                        abort = true;
+                        break;
+                    }
+                }
+                if (abort) {
+                    break;
+                }
+            }
+            else {
+                if (!(rightNode instanceof Uint8Array)) {
+                    break;
+                }
+                if (!equalsBytes(leftNode, rightNode)) {
+                    break;
+                }
+            }
+            // continue to the next node
+            parent = node;
+            node = await trie.lookupNode(leftNode);
+            pos += 1;
+        }
+        else {
+            throw new Error('invalid node');
+        }
+    }
+    // 2. Starting from the fork point, delete all nodes between `left` and `right`
+    const saveStack = (key, stack) => {
+        return trie.saveStack(key, stack, []);
+    };
+    if (node instanceof ExtensionNode || node instanceof LeafNode) {
+        /**
+         * There can have these five scenarios:
+         * - both proofs are less than the trie path => no valid range
+         * - both proofs are greater than the trie path => no valid range
+         * - left proof is less and right proof is greater => valid range, unset the entire trie
+         * - left proof points to the trie node, but right proof is greater => valid range, unset left node
+         * - right proof points to the trie node, but left proof is less  => valid range, unset right node
+         */
+        const removeSelfFromParentAndSaveStack = async (key) => {
+            if (parent === null) {
+                return true;
+            }
+            stack.pop();
+            parent.setBranch(key[pos - 1], null);
+            await saveStack(key.slice(0, pos - 1), stack);
+            return false;
+        };
+        if (shortForkLeft === -1 && shortForkRight === -1) {
+            throw new Error('invalid range');
+        }
+        if (shortForkLeft === 1 && shortForkRight === 1) {
+            throw new Error('invalid range');
+        }
+        if (shortForkLeft !== 0 && shortForkRight !== 0) {
+            // Unset the entire trie
+            return removeSelfFromParentAndSaveStack(left);
+        }
+        // Unset left node
+        if (shortForkRight !== 0) {
+            if (node instanceof LeafNode) {
+                return removeSelfFromParentAndSaveStack(left);
+            }
+            const child = await trie.lookupNode(node._value);
+            if (child instanceof LeafNode) {
+                return removeSelfFromParentAndSaveStack(left);
+            }
+            const endPos = await unset(trie, node, child, left.slice(pos), node.keyLength(), false, stack);
+            await saveStack(left.slice(0, pos + endPos), stack);
+            return false;
+        }
+        // Unset right node
+        if (shortForkLeft !== 0) {
+            if (node instanceof LeafNode) {
+                return removeSelfFromParentAndSaveStack(right);
+            }
+            const child = await trie.lookupNode(node._value);
+            if (child instanceof LeafNode) {
+                return removeSelfFromParentAndSaveStack(right);
+            }
+            const endPos = await unset(trie, node, child, right.slice(pos), node.keyLength(), true, stack);
+            await saveStack(right.slice(0, pos + endPos), stack);
+            return false;
+        }
+        return false;
+    }
+    else if (node instanceof BranchNode) {
+        // Unset all internal nodes in the forkpoint
+        for (let i = left[pos] + 1; i < right[pos]; i++) {
+            node.setBranch(i, null);
+        }
+        {
+            /**
+             * `stack` records the path from root to fork point.
+             * Since we need to unset both left and right nodes once,
+             * we need to make a copy here.
+             */
+            const _stack = [...stack];
+            const next = node.getBranch(left[pos]);
+            const child = next && (await trie.lookupNode(next));
+            const endPos = await unset(trie, node, child, left.slice(pos), 1, false, _stack);
+            await saveStack(left.slice(0, pos + endPos), _stack);
+        }
+        {
+            const _stack = [...stack];
+            const next = node.getBranch(right[pos]);
+            const child = next && (await trie.lookupNode(next));
+            const endPos = await unset(trie, node, child, right.slice(pos), 1, true, _stack);
+            await saveStack(right.slice(0, pos + endPos), _stack);
+        }
+        return false;
+    }
+    else {
+        throw new Error('invalid node');
+    }
+}
+/**
+ * Verifies a proof and return the verified trie.
+ * @param rootHash - root hash.
+ * @param key - target key.
+ * @param proof - proof node list.
+ * @throws If proof is found to be invalid.
+ * @returns The value from the key, or null if valid proof of non-existence.
+ */
+async function verifyProof(rootHash, key, proof, useKeyHashingFunction) {
+    const proofTrie = await Trie.fromProof(proof, {
+        root: rootHash,
+        useKeyHashingFunction,
+    });
+    try {
+        const value = await proofTrie.get(key, true);
+        return {
+            trie: proofTrie,
+            value,
+        };
+    }
+    catch (err) {
+        if (err.message === 'Missing node in DB') {
+            throw new Error('Invalid proof provided');
+        }
+        else {
+            throw err;
+        }
+    }
+}
+/**
+ * hasRightElement returns the indicator whether there exists more elements
+ * on the right side of the given path
+ * @param trie - trie object.
+ * @param key - given path.
+ */
+async function hasRightElement(trie, key) {
+    let pos = 0;
+    let node = await trie.lookupNode(trie.root());
+    while (node !== null) {
+        if (node instanceof BranchNode) {
+            for (let i = key[pos] + 1; i < 16; i++) {
+                if (node.getBranch(i) !== null) {
+                    return true;
+                }
+            }
+            const next = node.getBranch(key[pos]);
+            node = next && (await trie.lookupNode(next));
+            pos += 1;
+        }
+        else if (node instanceof ExtensionNode) {
+            if (key.length - pos < node.keyLength() ||
+                nibblesCompare(node._nibbles, key.slice(pos, pos + node.keyLength())) !== 0) {
+                return nibblesCompare(node._nibbles, key.slice(pos)) > 0;
+            }
+            pos += node.keyLength();
+            node = await trie.lookupNode(node._value);
+        }
+        else if (node instanceof LeafNode) {
+            return false;
+        }
+        else {
+            throw new Error('invalid node');
+        }
+    }
+    return false;
+}
+/**
+ * verifyRangeProof checks whether the given leaf nodes and edge proof
+ * can prove the given trie leaves range is matched with the specific root.
+ *
+ * There are four situations:
+ *
+ * - All elements proof. In this case the proof can be null, but the range should
+ *   be all the leaves in the trie.
+ *
+ * - One element proof. In this case no matter the edge proof is a non-existent
+ *   proof or not, we can always verify the correctness of the proof.
+ *
+ * - Zero element proof. In this case a single non-existent proof is enough to prove.
+ *   Besides, if there are still some other leaves available on the right side, then
+ *   an error will be returned.
+ *
+ * - Two edge elements proof. In this case two existent or non-existent proof(first and last) should be provided.
+ *
+ * NOTE: Currently only supports verification when the length of firstKey and lastKey are the same.
+ *
+ * @param rootHash - root hash of state trie this proof is being verified against.
+ * @param firstKey - first key of range being proven.
+ * @param lastKey - last key of range being proven.
+ * @param keys - key list of leaf data being proven.
+ * @param values - value list of leaf data being proven, one-to-one correspondence with keys.
+ * @param proof - proof node list, if all-elements-proof where no proof is needed, proof should be null, and both `firstKey` and `lastKey` must be null as well
+ * @returns a flag to indicate whether there exists more trie node in the trie
+ */
+async function verifyRangeProof(rootHash, firstKey, lastKey, keys, values, proof, useKeyHashingFunction) {
+    if (keys.length !== values.length) {
+        throw new Error('invalid keys length or values length');
+    }
+    // Make sure the keys are in order
+    for (let i = 0; i < keys.length - 1; i++) {
+        if (nibblesCompare(keys[i], keys[i + 1]) >= 0) {
+            throw new Error('invalid keys order');
+        }
+    }
+    // Make sure all values are present
+    for (const value of values) {
+        if (value.length === 0) {
+            throw new Error('invalid values');
+        }
+    }
+    // All elements proof
+    if (proof === null && firstKey === null && lastKey === null) {
+        const trie = new Trie({ useKeyHashingFunction });
+        for (let i = 0; i < keys.length; i++) {
+            await trie.put(nibblestoBytes(keys[i]), values[i]);
+        }
+        if (!equalsBytes(rootHash, trie.root())) {
+            throw new Error('invalid all elements proof: root mismatch');
+        }
+        return false;
+    }
+    if (proof !== null && firstKey !== null && lastKey === null) {
+        // Zero element proof
+        if (keys.length === 0) {
+            const { trie, value } = await verifyProof(rootHash, nibblestoBytes(firstKey), proof, useKeyHashingFunction);
+            if (value !== null || (await hasRightElement(trie, firstKey))) {
+                throw new Error('invalid zero element proof: value mismatch');
+            }
+            return false;
+        }
+    }
+    if (proof === null || firstKey === null || lastKey === null) {
+        throw new Error('invalid all elements proof: proof, firstKey, lastKey must be null at the same time');
+    }
+    // One element proof
+    if (keys.length === 1 && nibblesCompare(firstKey, lastKey) === 0) {
+        const { trie, value } = await verifyProof(rootHash, nibblestoBytes(firstKey), proof, useKeyHashingFunction);
+        if (nibblesCompare(firstKey, keys[0]) !== 0) {
+            throw new Error('invalid one element proof: firstKey should be equal to keys[0]');
+        }
+        if (value === null || !equalsBytes(value, values[0])) {
+            throw new Error('invalid one element proof: value mismatch');
+        }
+        return hasRightElement(trie, firstKey);
+    }
+    // Two edge elements proof
+    if (nibblesCompare(firstKey, lastKey) >= 0) {
+        throw new Error('invalid two edge elements proof: firstKey should be less than lastKey');
+    }
+    if (firstKey.length !== lastKey.length) {
+        throw new Error('invalid two edge elements proof: the length of firstKey should be equal to the length of lastKey');
+    }
+    const trie = await Trie.fromProof(proof, {
+        useKeyHashingFunction,
+        root: rootHash,
+    });
+    // Remove all nodes between two edge proofs
+    const empty = await unsetInternal(trie, firstKey, lastKey);
+    if (empty) {
+        trie.root(trie.EMPTY_TRIE_ROOT);
+    }
+    // Put all elements to the trie
+    for (let i = 0; i < keys.length; i++) {
+        await trie.put(nibblestoBytes(keys[i]), values[i]);
+    }
+    // Compare rootHash
+    if (!equalsBytes(trie.root(), rootHash)) {
+        throw new Error('invalid two edge elements proof: root mismatch');
+    }
+    return hasRightElement(trie, keys[keys.length - 1]);
+}
+
 class StatelessProvider extends JsonRpcProvider {
     /**
      * Minimum number of matching attestations required to consider a response valid
@@ -22493,12 +29428,24 @@ class StatelessProvider extends JsonRpcProvider {
      * The expected identities for the attestations
      */
     identities;
-    constructor(url, identities, minimumRequiredAttestations, network, options) {
+    prover = null;
+    constructor(url, identities, minimumRequiredAttestations, proverUrl, network, options) {
         super(url, network, options);
         this.identities = identities;
         this.minimumRequiredAttestations = minimumRequiredAttestations || 1;
+        if (proverUrl) {
+            this.prover = new JsonRpcProvider(proverUrl, network);
+        }
     }
     async _send(payload) {
+        if (this.prover) {
+            const payloads = Array.isArray(payload) ? payload : [payload];
+            for (let i = 0; i < payloads.length; i++) {
+                if (payloads[i].method === "eth_call") {
+                    await this.verifyStatelessProof(payloads[i].params);
+                }
+            }
+        }
         const request = this._getConnection();
         request.body = JSON.stringify(payload);
         request.setHeader("content-type", "application/json");
@@ -22508,6 +29455,13 @@ class StatelessProvider extends JsonRpcProvider {
         if (!Array.isArray(resp)) {
             resp = [resp];
         }
+        if (!this.prover) {
+            return await this.verifyAttestations(resp);
+        }
+        return resp;
+    }
+    async verifyAttestations(resp) {
+        const responses = [];
         // If it's a batch request, the identity is only included in the first response from the batch
         // We need to construct an ordered list of identities to use for verification
         for (let i = 0; i < resp.length; i++) {
@@ -22515,115 +29469,183 @@ class StatelessProvider extends JsonRpcProvider {
             if (resp.length > 1 && i == 0 && result.attestations) {
                 this.identities = result.attestations.map((attestation) => attestation.identity);
             }
-            const isValid = await verifyAttestedJsonRpcResponse(result, this.minimumRequiredAttestations, this.identities);
+            const isValid = await this.verifyAttestedJsonRpcResponse(result, this.minimumRequiredAttestations, this.identities);
             if (!isValid) {
                 throw new Error(`Request did not meet the attestation threshold of ${this.minimumRequiredAttestations}.`);
             }
             delete result.attestations;
+            responses.push(result);
         }
-        return resp;
+        return responses;
     }
-}
-async function verifyAttestedJsonRpcResponse(response, minimumRequiredAttestations = 1, identities) {
-    let resultHashes = [];
-    if (Array.isArray(response.result)) {
-        for (const result of response.result) {
-            // Our attestation code in the ethereum client adds this field by default,
-            // this is not ideal and should be revisited - fields that don't come from provider responses,
-            // shouldn't be included by default
-            if (!result.timestamp) {
-                result.timestamp = "0x0";
+    extractDefinedProperties(obj) {
+        return Object.fromEntries(Object.entries(obj).filter(([_, v]) => v !== undefined));
+    }
+    async verifyStatelessProof(params) {
+        const latestBlockNumber = await this.send("eth_blockNumber", []);
+        const { stateRoot: stateRootHex } = await this.send("eth_getBlockByNumber", [latestBlockNumber, false]);
+        const stateRoot = this.fromHexString(stateRootHex);
+        let createAccessListParams;
+        if (Array.isArray(params)) {
+            const [firstParam] = params;
+            createAccessListParams = this.extractDefinedProperties(firstParam);
+        }
+        else {
+            createAccessListParams = this.extractDefinedProperties(params);
+        }
+        const { accessList } = await this.prover.send("eth_createAccessList", [createAccessListParams]);
+        const { accountProof, storageProof, storageHash: storageHashHex, } = await this.prover.send("eth_getProof", [
+            accessList[0].address,
+            accessList[0].storageKeys,
+            latestBlockNumber,
+        ]);
+        const storageHash = this.fromHexString(storageHashHex);
+        // Verify state trie
+        const trie = new Trie({ root: stateRoot, useKeyHashing: true });
+        await trie.updateFromProof(accountProof.map((p) => this.fromHexString(p)));
+        const accessListAddress = this.fromHexString(accessList[0].address);
+        const val = await trie.get(accessListAddress, true);
+        if (!val) {
+            throw new Error("Account not found in state trie");
+        }
+        // Verify storage trie
+        const storageTrie = new Trie({ root: storageHash, useKeyHashing: true });
+        for (let i = 0; i < accessList[0].storageKeys.length; i++) {
+            const proofBuffer = storageProof[i].proof.map((p) => this.fromHexString(p));
+            await storageTrie.updateFromProof(proofBuffer);
+            const storageVal = await storageTrie.get(this.fromHexString(accessList[0].storageKeys[i]));
+            if (!storageVal) {
+                throw new Error("Storage value not found");
             }
-            const stringifiedResult = JSON.stringify(result);
-            const resultBytes = Buffer.from(stringifiedResult);
-            const hash = crypto$2.createHash("sha256").update(resultBytes).digest("hex");
-            resultHashes.push(hash);
         }
+        return;
     }
-    else {
-        const resultBytes = Buffer.from(JSON.stringify(response.result));
-        const hash = crypto$2.createHash("sha256").update(resultBytes).digest("hex");
-        resultHashes = [hash];
+    async verifyAttestedJsonRpcResponse(response, minimumRequiredAttestations = 1, identities) {
+        let content;
+        let contentHashes = [];
+        if ("result" in response) {
+            content = response.result;
+        }
+        else if ("error" in response) {
+            content = response.error;
+        }
+        if (content === undefined) {
+            throw new Error("Response must contain either a result or an error field");
+        }
+        if (Array.isArray(content)) {
+            for (const item of content) {
+                // Our attestation code in the ethereum client adds this field by default,
+                // this is not ideal and should be revisited - fields that don't come from provider responses,
+                // shouldn't be included by default
+                if (!item.timestamp) {
+                    item.timestamp = "0x0";
+                }
+                const stringifiedItem = JSON.stringify(item);
+                const itemBytes = Buffer.from(stringifiedItem);
+                const hash = crypto$3
+                    .createHash("sha256")
+                    .update(itemBytes)
+                    .digest("hex");
+                contentHashes.push(hash);
+            }
+        }
+        else {
+            const contentBytes = Buffer.from(JSON.stringify(content));
+            const hash = crypto$3
+                .createHash("sha256")
+                .update(contentBytes)
+                .digest("hex");
+            contentHashes = [hash];
+        }
+        const validAttestations = [];
+        for (const [i, attestation] of response.attestations.entries()) {
+            // There's a chance the attestation does not have an identity if it's a batch response
+            // In that case, use the provided identities
+            if (identities && !attestation.identity) {
+                attestation.identity = identities[i];
+            }
+            // If identities are provided, only use attestations from those identities
+            if (identities && !identities.includes(attestation.identity)) {
+                continue;
+            }
+            let sshPublicKey;
+            try {
+                sshPublicKey = await this.publicKeyFromIdentity(attestation.identity);
+            }
+            catch (error) {
+                continue;
+            }
+            const key = sshpk.parseKey(sshPublicKey, "ssh");
+            if (key.type !== "ed25519") {
+                throw new Error("The provided key is not an ed25519 key");
+            }
+            // @ts-ignore
+            const publicKeyUint8Array = new Uint8Array(key.part.A.data);
+            const isValid = this.verifyAttestation(attestation, publicKeyUint8Array, contentHashes);
+            if (!isValid) {
+                continue;
+            }
+            validAttestations.push(attestation);
+        }
+        return validAttestations.length >= minimumRequiredAttestations;
     }
-    const validAttestations = [];
-    for (const [i, attestation] of response.attestations.entries()) {
-        // There's a chance the attestation does not have an identity if it's a batch response
-        // In that case, use the provided identities
-        if (identities && !attestation.identity) {
-            attestation.identity = identities[i];
-        }
-        // If identities are provided, only use attestations from those identities
-        if (identities && !identities.includes(attestation.identity)) {
-            continue;
-        }
-        let sshPublicKey;
-        try {
-            sshPublicKey = await publicKeyFromIdentity(attestation.identity);
-        }
-        catch (error) {
-            continue;
-        }
-        const key = sshpk.parseKey(sshPublicKey, "ssh");
-        if (key.type !== "ed25519") {
-            throw new Error("The provided key is not an ed25519 key");
-        }
-        // @ts-ignore
-        const publicKeyUint8Array = new Uint8Array(key.part.A.data);
-        const isValid = verifyAttestation(attestation, publicKeyUint8Array, resultHashes);
-        if (!isValid) {
-            continue;
-        }
-        validAttestations.push(attestation);
-    }
-    return validAttestations.length >= minimumRequiredAttestations;
-}
-function verifyAttestation(attestation, publicKey, resultHashes) {
-    // Calls like `eth_getLogs` return a list of message hashes and signatures,
-    // so we need to make sure the logs returned in the response are backed by the minimum amount of required attestations
-    if (attestation.msgs && attestation.msgs.length > 0 && attestation.signatures) {
-        const isSubset = resultHashes.every(hash => attestation.msgs?.includes(hash));
-        if (!isSubset) {
-            return false;
-        }
-        return attestation.msgs.every((msg, index) => {
-            if (!attestation.signatures)
+    verifyAttestation(attestation, publicKey, resultHashes) {
+        // Calls like `eth_getLogs` return a list of message hashes and signatures,
+        // so we need to make sure the logs returned in the response are backed by the minimum amount of required attestations
+        if (attestation.msgs &&
+            attestation.msgs.length > 0 &&
+            attestation.signatures) {
+            const isSubset = resultHashes.every((hash) => attestation.msgs?.includes(hash));
+            if (!isSubset) {
                 return false;
-            return verifySignature(msg, attestation.signatures[index], publicKey, attestation.hashAlgo);
-        });
-    }
-    else if (attestation.msg && attestation.signature) {
-        const isHashInResult = resultHashes.includes(attestation.msg);
-        return isHashInResult && verifySignature(attestation.msg, attestation.signature, publicKey, attestation.hashAlgo);
-    }
-    return false;
-}
-function verifySignature(msgHash, signature, publicKey, hashAlgo) {
-    try {
-        if (!publicKey)
-            throw new Error("Public key is undefined.");
-        if (!msgHash)
-            throw new Error("Message hash is undefined.");
-        if (!signature)
-            throw new Error("Signature is undefined.");
-        const signatureBytes = Buffer.from(signature, "hex");
-        const signatureUint8Array = new Uint8Array(signatureBytes);
-        const msgHashBytes = Buffer.from(msgHash, 'hex');
-        return nacl.sign.detached.verify(msgHashBytes, signatureUint8Array, publicKey);
-    }
-    catch (error) {
-        console.error("Verification failed:", error);
+            }
+            return attestation.msgs.every((msg, index) => {
+                if (!attestation.signatures)
+                    return false;
+                return this.verifySignature(msg, attestation.signatures[index], publicKey, attestation.hashAlgo);
+            });
+        }
+        else if (attestation.msg && attestation.signature) {
+            const isHashInResult = resultHashes.includes(attestation.msg);
+            return (isHashInResult &&
+                this.verifySignature(attestation.msg, attestation.signature, publicKey, attestation.hashAlgo));
+        }
         return false;
     }
-}
-async function publicKeyFromIdentity(identity) {
-    const url = `${identity}/.well-known/stateless-key`;
-    const req = new FetchRequest(url);
-    const response = await req.send();
-    response.assertOk();
-    if (response.statusCode !== 200) {
-        throw new Error(`Could not fetch public key from ${url}`);
+    verifySignature(msgHash, signature, publicKey, hashAlgo) {
+        try {
+            if (!publicKey)
+                throw new Error("Public key is undefined.");
+            if (!msgHash)
+                throw new Error("Message hash is undefined.");
+            if (!signature)
+                throw new Error("Signature is undefined.");
+            const signatureBytes = Buffer.from(signature, "hex");
+            const signatureUint8Array = new Uint8Array(signatureBytes);
+            const msgHashBytes = Buffer.from(msgHash, "hex");
+            return nacl.sign.detached.verify(msgHashBytes, signatureUint8Array, publicKey);
+        }
+        catch (error) {
+            console.error("Verification failed:", error);
+            return false;
+        }
     }
-    return response.bodyText;
+    async publicKeyFromIdentity(identity) {
+        const url = `${identity}/.well-known/stateless-key`;
+        const req = new FetchRequest(url);
+        const response = await req.send();
+        response.assertOk();
+        if (response.statusCode !== 200) {
+            throw new Error(`Could not fetch public key from ${url}`);
+        }
+        return response.bodyText;
+    }
+    fromHexString = (hexString) => {
+        if (hexString.startsWith("0x")) {
+            hexString = hexString.slice(2);
+        }
+        return Uint8Array.from((hexString.match(/.{1,2}/g) || []).map((byte) => parseInt(byte, 16)));
+    };
 }
 
 const IpcSocketProvider = undefined;
@@ -22710,12 +29732,12 @@ class BaseWallet extends AbstractSigner {
         const populated = await TypedDataEncoder.resolveNames(domain, types, value, async (name) => {
             // @TODO: this should use resolveName; addresses don't
             //        need a provider
-            assert(this.provider != null, "cannot resolve ENS names without a provider", "UNSUPPORTED_OPERATION", {
+            assert$2(this.provider != null, "cannot resolve ENS names without a provider", "UNSUPPORTED_OPERATION", {
                 operation: "resolveName",
                 info: { name }
             });
             const address = await this.provider.resolveName(name);
-            assert(address != null, "unconfigured ENS name", "UNCONFIGURED_NAME", {
+            assert$2(address != null, "unconfigured ENS name", "UNCONFIGURED_NAME", {
                 value: name
             });
             return address;
@@ -22941,7 +29963,7 @@ function mnemonicToEntropy(mnemonic, wordlist) {
     const entropyBits = 32 * words.length / 3;
     const checksumBits = words.length / 3;
     const checksumMask = getUpperMask(checksumBits);
-    const checksum = getBytes(sha256(entropy.slice(0, entropyBits / 8)))[0] & checksumMask;
+    const checksum = getBytes(sha256$1(entropy.slice(0, entropyBits / 8)))[0] & checksumMask;
     assertArgument(checksum === (entropy[entropy.length - 1] & checksumMask), "invalid mnemonic checksum", "mnemonic", "[ REDACTED ]");
     return hexlify(entropy.slice(0, entropyBits / 8));
 }
@@ -22970,7 +29992,7 @@ function entropyToMnemonic(entropy, wordlist) {
     }
     // Compute the checksum bits
     const checksumBits = entropy.length / 4;
-    const checksum = parseInt(sha256(entropy).substring(2, 4), 16) & getUpperMask(checksumBits);
+    const checksum = parseInt(sha256$1(entropy).substring(2, 4), 16) & getUpperMask(checksumBits);
     // Shift the checksum into the word indices
     indices[indices.length - 1] <<= checksumBits;
     indices[indices.length - 1] |= (checksum >> (8 - checksumBits));
@@ -23615,14 +30637,14 @@ function decrypt(data, key, ciphertext) {
         const aesCtr = new CTR(key, iv);
         return hexlify(aesCtr.decrypt(ciphertext));
     }
-    assert(false, "unsupported cipher", "UNSUPPORTED_OPERATION", {
+    assert$2(false, "unsupported cipher", "UNSUPPORTED_OPERATION", {
         operation: "decrypt"
     });
 }
 function getAccount(data, _key) {
     const key = getBytes(_key);
     const ciphertext = spelunk(data, "crypto.ciphertext:data!");
-    const computedMAC = hexlify(keccak256(concat([key.slice(16, 32), ciphertext]))).substring(2);
+    const computedMAC = hexlify(keccak256$1(concat([key.slice(16, 32), ciphertext]))).substring(2);
     assertArgument(computedMAC === spelunk(data, "crypto.mac:string!").toLowerCase(), "incorrect password", "password", "[ REDACTED ]");
     const privateKey = decrypt(data, key.slice(0, 16), ciphertext);
     const address = computeAddress(privateKey);
@@ -23698,7 +30720,7 @@ function decryptKeystoreJsonSync(json, _password) {
         const key = pbkdf2(password, salt, count, dkLen, algorithm);
         return getAccount(data, key);
     }
-    assert(params.name === "scrypt", "cannot be reached", "UNKNOWN_ERROR", { params });
+    assert$2(params.name === "scrypt", "cannot be reached", "UNKNOWN_ERROR", { params });
     const { salt, N, r, p, dkLen } = params;
     const key = scryptSync(password, salt, N, r, p, dkLen);
     return getAccount(data, key);
@@ -23734,14 +30756,14 @@ async function decryptKeystoreJson(json, _password, progress) {
         }
         return getAccount(data, key);
     }
-    assert(params.name === "scrypt", "cannot be reached", "UNKNOWN_ERROR", { params });
+    assert$2(params.name === "scrypt", "cannot be reached", "UNKNOWN_ERROR", { params });
     const { salt, N, r, p, dkLen } = params;
     const key = await scrypt(password, salt, N, r, p, dkLen, progress);
     return getAccount(data, key);
 }
 function getEncryptKdfParams(options) {
     // Check/generate the salt
-    const salt = (options.salt != null) ? getBytes(options.salt, "options.salt") : randomBytes(32);
+    const salt = (options.salt != null) ? getBytes(options.salt, "options.salt") : randomBytes$1(32);
     // Override the scrypt password-based key derivation function parameters
     let N = (1 << 17), r = 8, p = 1;
     if (options.scrypt) {
@@ -23763,10 +30785,10 @@ function getEncryptKdfParams(options) {
 function _encryptKeystore(key, kdf, account, options) {
     const privateKey = getBytes(account.privateKey, "privateKey");
     // Override initialization vector
-    const iv = (options.iv != null) ? getBytes(options.iv, "options.iv") : randomBytes(16);
+    const iv = (options.iv != null) ? getBytes(options.iv, "options.iv") : randomBytes$1(16);
     assertArgument(iv.length === 16, "invalid options.iv length", "options.iv", options.iv);
     // Override the uuid
-    const uuidRandom = (options.uuid != null) ? getBytes(options.uuid, "options.uuid") : randomBytes(16);
+    const uuidRandom = (options.uuid != null) ? getBytes(options.uuid, "options.uuid") : randomBytes$1(16);
     assertArgument(uuidRandom.length === 16, "invalid options.uuid length", "options.uuid", options.iv);
     // This will be used to encrypt the wallet (as per Web3 secret storage)
     // - 32 bytes   As normal for the Web3 secret storage (derivedKey, macPrefix)
@@ -23777,7 +30799,7 @@ function _encryptKeystore(key, kdf, account, options) {
     const aesCtr = new CTR(derivedKey, iv);
     const ciphertext = getBytes(aesCtr.encrypt(privateKey));
     // Compute the message authentication code, used to check the password
-    const mac = keccak256(concat([macPrefix, ciphertext]));
+    const mac = keccak256$1(concat([macPrefix, ciphertext]));
     // See: https://github.com/ethereum/wiki/wiki/Web3-Secret-Storage-Definition
     const data = {
         address: account.address.substring(2).toLowerCase(),
@@ -23807,7 +30829,7 @@ function _encryptKeystore(key, kdf, account, options) {
         const locale = account.mnemonic.locale || "en";
         const mnemonicKey = key.slice(32, 64);
         const entropy = getBytes(account.mnemonic.entropy, "account.mnemonic.entropy");
-        const mnemonicIv = randomBytes(16);
+        const mnemonicIv = randomBytes$1(16);
         const mnemonicAesCtr = new CTR(mnemonicKey, mnemonicIv);
         const mnemonicCiphertext = getBytes(mnemonicAesCtr.encrypt(entropy));
         const now = new Date();
@@ -23890,7 +30912,7 @@ function zpad(value, length) {
 }
 function encodeBase58Check(_value) {
     const value = getBytes(_value);
-    const check = dataSlice(sha256(sha256(value)), 0, 4);
+    const check = dataSlice(sha256$1(sha256$1(value)), 0, 4);
     const bytes = concat([value, check]);
     return encodeBase58(bytes);
 }
@@ -23898,7 +30920,7 @@ const _guard = {};
 function ser_I(index, chainCode, publicKey, privateKey) {
     const data = new Uint8Array(37);
     if (index & HardenedBit) {
-        assert(privateKey != null, "cannot derive child of neutered node", "UNSUPPORTED_OPERATION", {
+        assert$2(privateKey != null, "cannot derive child of neutered node", "UNSUPPORTED_OPERATION", {
             operation: "deriveChild"
         });
         // Data = 0x00 || ser_256(k_par)
@@ -24002,7 +31024,7 @@ class HDNodeWallet extends BaseWallet {
         super(signingKey, provider);
         assertPrivate(guard, _guard, "HDNodeWallet");
         defineProperties(this, { publicKey: signingKey.compressedPublicKey });
-        const fingerprint = dataSlice(ripemd160(sha256(this.publicKey)), 0, 4);
+        const fingerprint = dataSlice(ripemd160(sha256$1(this.publicKey)), 0, 4);
         defineProperties(this, {
             parentFingerprint, fingerprint,
             chainCode, path, index, depth
@@ -24059,7 +31081,7 @@ class HDNodeWallet extends BaseWallet {
         // we should always use mainnet, and use BIP-44 to derive the network
         //   - Mainnet: public=0x0488B21E, private=0x0488ADE4
         //   - Testnet: public=0x043587CF, private=0x04358394
-        assert(this.depth < 256, "Depth too deep", "UNSUPPORTED_OPERATION", { operation: "extendedKey" });
+        assert$2(this.depth < 256, "Depth too deep", "UNSUPPORTED_OPERATION", { operation: "extendedKey" });
         return encodeBase58Check(concat([
             "0x0488ADE4", zpad(this.depth, 1), this.parentFingerprint,
             zpad(this.index, 4), this.chainCode,
@@ -24158,7 +31180,7 @@ class HDNodeWallet extends BaseWallet {
         if (wordlist == null) {
             wordlist = LangEn.wordlist();
         }
-        const mnemonic = Mnemonic.fromEntropy(randomBytes(16), password, wordlist);
+        const mnemonic = Mnemonic.fromEntropy(randomBytes$1(16), password, wordlist);
         return HDNodeWallet.#fromSeed(mnemonic.computeSeed(), mnemonic).derivePath(path);
     }
     /**
@@ -24248,7 +31270,7 @@ class HDNodeVoidWallet extends VoidSigner {
         super(address, provider);
         assertPrivate(guard, _guard, "HDNodeVoidWallet");
         defineProperties(this, { publicKey });
-        const fingerprint = dataSlice(ripemd160(sha256(publicKey)), 0, 4);
+        const fingerprint = dataSlice(ripemd160(sha256$1(publicKey)), 0, 4);
         defineProperties(this, {
             publicKey, fingerprint, parentFingerprint, chainCode, path, index, depth
         });
@@ -24268,7 +31290,7 @@ class HDNodeVoidWallet extends VoidSigner {
         // we should always use mainnet, and use BIP-44 to derive the network
         //   - Mainnet: public=0x0488B21E, private=0x0488ADE4
         //   - Testnet: public=0x043587CF, private=0x04358394
-        assert(this.depth < 256, "Depth too deep", "UNSUPPORTED_OPERATION", { operation: "extendedKey" });
+        assert$2(this.depth < 256, "Depth too deep", "UNSUPPORTED_OPERATION", { operation: "extendedKey" });
         return encodeBase58Check(concat([
             "0x0488B21E",
             zpad(this.depth, 1),
@@ -24734,7 +31756,7 @@ var ethers = /*#__PURE__*/Object.freeze({
     ZeroAddress: ZeroAddress,
     ZeroHash: ZeroHash,
     accessListify: accessListify,
-    assert: assert,
+    assert: assert$2,
     assertArgument: assertArgument,
     assertArgumentCount: assertArgumentCount,
     assertNormalize: assertNormalize,
@@ -24787,10 +31809,10 @@ var ethers = /*#__PURE__*/Object.freeze({
     isCallException: isCallException,
     isCrowdsaleJson: isCrowdsaleJson,
     isError: isError,
-    isHexString: isHexString,
+    isHexString: isHexString$1,
     isKeystoreJson: isKeystoreJson,
     isValidName: isValidName,
-    keccak256: keccak256,
+    keccak256: keccak256$1,
     lock: lock,
     makeError: makeError,
     mask: mask,
@@ -24798,14 +31820,14 @@ var ethers = /*#__PURE__*/Object.freeze({
     parseEther: parseEther,
     parseUnits: parseUnits$1,
     pbkdf2: pbkdf2,
-    randomBytes: randomBytes,
+    randomBytes: randomBytes$1,
     recoverAddress: recoverAddress,
     resolveAddress: resolveAddress,
     resolveProperties: resolveProperties,
     ripemd160: ripemd160,
     scrypt: scrypt,
     scryptSync: scryptSync,
-    sha256: sha256,
+    sha256: sha256$1,
     sha512: sha512,
     showThrottleMessage: showThrottleMessage,
     solidityPacked: solidityPacked,
@@ -24830,5 +31852,5 @@ var ethers = /*#__PURE__*/Object.freeze({
     zeroPadValue: zeroPadValue
 });
 
-export { AbiCoder, AbstractProvider, AbstractSigner, AlchemyProvider, AnkrProvider, BaseContract, BaseWallet, Block, BrowserProvider, CloudflareProvider, ConstructorFragment, Contract, ContractEventPayload, ContractFactory, ContractTransactionReceipt, ContractTransactionResponse, ContractUnknownEventPayload, EnsPlugin, EnsResolver, ErrorDescription, ErrorFragment, EtherSymbol, EtherscanPlugin, EtherscanProvider, EventFragment, EventLog, EventPayload, FallbackFragment, FallbackProvider, FeeData, FeeDataNetworkPlugin, FetchCancelSignal, FetchRequest, FetchResponse, FetchUrlFeeDataNetworkPlugin, FixedNumber, Fragment, FunctionFragment, GasCostPlugin, HDNodeVoidWallet, HDNodeWallet, Indexed, InfuraProvider, InfuraWebSocketProvider, Interface, IpcSocketProvider, JsonRpcApiProvider, JsonRpcProvider, JsonRpcSigner, LangEn, Log, LogDescription, MaxInt256, MaxUint256, MessagePrefix, MinInt256, Mnemonic, MulticoinProviderPlugin, N$1 as N, NamedFragment, Network, NetworkPlugin, NonceManager, ParamType, PocketProvider, QuickNodeProvider, Result, Signature, SigningKey, SocketBlockSubscriber, SocketEventSubscriber, SocketPendingSubscriber, SocketProvider, SocketSubscriber, StatelessProvider, StructFragment, Transaction, TransactionDescription, TransactionReceipt, TransactionResponse, Typed, TypedDataEncoder, UndecodedEventLog, UnmanagedSubscriber, Utf8ErrorFuncs, VoidSigner, Wallet, WebSocketProvider, WeiPerEther, Wordlist, WordlistOwl, WordlistOwlA, ZeroAddress, ZeroHash, accessListify, assert, assertArgument, assertArgumentCount, assertNormalize, assertPrivate, checkResultErrors, computeAddress, computeHmac, concat, copyRequest, dataLength, dataSlice, decodeBase58, decodeBase64, decodeBytes32String, decodeRlp, decryptCrowdsaleJson, decryptKeystoreJson, decryptKeystoreJsonSync, defaultPath, defineProperties, dnsEncode, encodeBase58, encodeBase64, encodeBytes32String, encodeRlp, encryptKeystoreJson, encryptKeystoreJsonSync, ensNormalize, ethers, formatEther, formatUnits, fromTwos, getAccountPath, getAddress, getBigInt, getBytes, getBytesCopy, getCreate2Address, getCreateAddress, getDefaultProvider, getIcapAddress, getIndexedAccountPath, getNumber, getUint, hashMessage, hexlify, id, isAddress, isAddressable, isBytesLike, isCallException, isCrowdsaleJson, isError, isHexString, isKeystoreJson, isValidName, keccak256, lock, makeError, mask, namehash, parseEther, parseUnits$1 as parseUnits, pbkdf2, randomBytes, recoverAddress, resolveAddress, resolveProperties, ripemd160, scrypt, scryptSync, sha256, sha512, showThrottleMessage, solidityPacked, solidityPackedKeccak256, solidityPackedSha256, stripZerosLeft, toBeArray, toBeHex, toBigInt, toNumber, toQuantity, toTwos, toUtf8Bytes, toUtf8CodePoints, toUtf8String, uuidV4, verifyMessage, verifyTypedData, version, wordlists, zeroPadBytes, zeroPadValue };
+export { AbiCoder, AbstractProvider, AbstractSigner, AlchemyProvider, AnkrProvider, BaseContract, BaseWallet, Block, BrowserProvider, CloudflareProvider, ConstructorFragment, Contract, ContractEventPayload, ContractFactory, ContractTransactionReceipt, ContractTransactionResponse, ContractUnknownEventPayload, EnsPlugin, EnsResolver, ErrorDescription, ErrorFragment, EtherSymbol, EtherscanPlugin, EtherscanProvider, EventFragment, EventLog, EventPayload, FallbackFragment, FallbackProvider, FeeData, FeeDataNetworkPlugin, FetchCancelSignal, FetchRequest, FetchResponse, FetchUrlFeeDataNetworkPlugin, FixedNumber, Fragment, FunctionFragment, GasCostPlugin, HDNodeVoidWallet, HDNodeWallet, Indexed, InfuraProvider, InfuraWebSocketProvider, Interface, IpcSocketProvider, JsonRpcApiProvider, JsonRpcProvider, JsonRpcSigner, LangEn, Log, LogDescription, MaxInt256, MaxUint256, MessagePrefix, MinInt256, Mnemonic, MulticoinProviderPlugin, N$1 as N, NamedFragment, Network, NetworkPlugin, NonceManager, ParamType, PocketProvider, QuickNodeProvider, Result, Signature, SigningKey, SocketBlockSubscriber, SocketEventSubscriber, SocketPendingSubscriber, SocketProvider, SocketSubscriber, StatelessProvider, StructFragment, Transaction, TransactionDescription, TransactionReceipt, TransactionResponse, Typed, TypedDataEncoder, UndecodedEventLog, UnmanagedSubscriber, Utf8ErrorFuncs, VoidSigner, Wallet, WebSocketProvider, WeiPerEther, Wordlist, WordlistOwl, WordlistOwlA, ZeroAddress, ZeroHash, accessListify, assert$2 as assert, assertArgument, assertArgumentCount, assertNormalize, assertPrivate, checkResultErrors, computeAddress, computeHmac, concat, copyRequest, dataLength, dataSlice, decodeBase58, decodeBase64, decodeBytes32String, decodeRlp, decryptCrowdsaleJson, decryptKeystoreJson, decryptKeystoreJsonSync, defaultPath, defineProperties, dnsEncode, encodeBase58, encodeBase64, encodeBytes32String, encodeRlp, encryptKeystoreJson, encryptKeystoreJsonSync, ensNormalize, ethers, formatEther, formatUnits, fromTwos, getAccountPath, getAddress, getBigInt, getBytes, getBytesCopy, getCreate2Address, getCreateAddress, getDefaultProvider, getIcapAddress, getIndexedAccountPath, getNumber, getUint, hashMessage, hexlify, id, isAddress, isAddressable, isBytesLike, isCallException, isCrowdsaleJson, isError, isHexString$1 as isHexString, isKeystoreJson, isValidName, keccak256$1 as keccak256, lock, makeError, mask, namehash, parseEther, parseUnits$1 as parseUnits, pbkdf2, randomBytes$1 as randomBytes, recoverAddress, resolveAddress, resolveProperties, ripemd160, scrypt, scryptSync, sha256$1 as sha256, sha512, showThrottleMessage, solidityPacked, solidityPackedKeccak256, solidityPackedSha256, stripZerosLeft, toBeArray, toBeHex, toBigInt, toNumber, toQuantity, toTwos, toUtf8Bytes, toUtf8CodePoints, toUtf8String, uuidV4, verifyMessage, verifyTypedData, version, wordlists, zeroPadBytes, zeroPadValue };
 //# sourceMappingURL=ethers.js.map

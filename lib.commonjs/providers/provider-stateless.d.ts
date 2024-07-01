@@ -1,5 +1,5 @@
 import type { Networkish } from "./network.js";
-import { JsonRpcApiProviderOptions, JsonRpcPayload, JsonRpcProvider, JsonRpcResult } from "./provider-jsonrpc.js";
+import { JsonRpcApiProviderOptions, JsonRpcError, JsonRpcPayload, JsonRpcProvider, JsonRpcResult } from "./provider-jsonrpc.js";
 /**
  * An attestation consists of the signature of the attester and cryptographic proof
  */
@@ -30,6 +30,9 @@ export type Attestation = {
 export type AttestedJsonRpcResult = JsonRpcResult & {
     attestations: Array<Attestation>;
 };
+export type AttestedJsonRpcError = JsonRpcError & {
+    attestations: Array<Attestation>;
+};
 export declare class StatelessProvider extends JsonRpcProvider {
     /**
      * Minimum number of matching attestations required to consider a response valid
@@ -39,7 +42,16 @@ export declare class StatelessProvider extends JsonRpcProvider {
      * The expected identities for the attestations
      */
     identities: string[];
-    constructor(url: string, identities: string[], minimumRequiredAttestations?: number, network?: Networkish, options?: JsonRpcApiProviderOptions);
+    private prover;
+    constructor(url: string, identities: string[], minimumRequiredAttestations?: number, proverUrl?: string, network?: Networkish, options?: JsonRpcApiProviderOptions);
     _send(payload: JsonRpcPayload | Array<JsonRpcPayload>): Promise<Array<JsonRpcResult>>;
+    private verifyAttestations;
+    private extractDefinedProperties;
+    private verifyStatelessProof;
+    private verifyAttestedJsonRpcResponse;
+    private verifyAttestation;
+    private verifySignature;
+    private publicKeyFromIdentity;
+    private fromHexString;
 }
 //# sourceMappingURL=provider-stateless.d.ts.map
